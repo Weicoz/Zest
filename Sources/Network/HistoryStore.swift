@@ -42,7 +42,7 @@ final class HistoryStore {
             .appendingPathComponent("network-history.sqlite")
     }
 
-    init?(url: URL = HistoryStore.defaultURL) {
+    init?(url: URL = HistoryStore.defaultURL, migrate: Bool = true, calendar: Calendar = .current) {
         self.url = url
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nil) == SQLITE_OK
@@ -64,12 +64,50 @@ final class HistoryStore {
             CREATE INDEX IF NOT EXISTS alerts_ts ON alerts(ts);
             CREATE TABLE IF NOT EXISTS daily_physical(
                 day INTEGER PRIMARY KEY, bytes_in INTEGER NOT NULL, bytes_out INTEGER NOT NULL);
+            """)
+        if !ok { return nil }
+        // 查看器进程只读：不建表、不回填，由主进程首次打开时完成。
+        if migrate, !createDailyApps(calendar: calendar) { return nil }
+    }
+
+    /// 首次建 daily_apps 时，在同一事务里按本地日把现有分钟明细回填一次（旧库升级当天不少算）；表已存在则不回填。
+    private func createDailyApps(calendar: Calendar) -> Bool {
+        var exists = false
+        if let s = prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='daily_apps'") {
+            exists = sqlite3_step(s) == SQLITE_ROW
+            sqlite3_finalize(s)
+        }
+        guard !exists else { return true }
+        guard exec("BEGIN IMMEDIATE") else { return false }
+        var ok = exec("""
             CREATE TABLE IF NOT EXISTS daily_apps(
                 day INTEGER NOT NULL, app_key TEXT NOT NULL,
                 bytes_in INTEGER NOT NULL, bytes_out INTEGER NOT NULL,
-                PRIMARY KEY(day, app_key)) WITHOUT ROWID;
+                PRIMARY KEY(day, app_key)) WITHOUT ROWID
             """)
-        if !ok { return nil }
+        var sums: [String: (day: Int, key: String, bytesIn: Int64, bytesOut: Int64)] = [:]
+        if ok, let s = prepare("SELECT minute, app_key, bytes_in, bytes_out FROM traffic") {
+            while sqlite3_step(s) == SQLITE_ROW {
+                let day = DayRange.key(of: Date(timeIntervalSince1970: Double(sqlite3_column_int64(s, 0)) * 60), calendar: calendar)
+                let key = text(s, 1) ?? ""
+                var e = sums["\(day)|\(key)"] ?? (day, key, 0, 0)
+                e.bytesIn += sqlite3_column_int64(s, 2); e.bytesOut += sqlite3_column_int64(s, 3)
+                sums["\(day)|\(key)"] = e
+            }
+            sqlite3_finalize(s)
+        } else if ok { ok = false }
+        if ok, let ins = prepare("INSERT INTO daily_apps(day, app_key, bytes_in, bytes_out) VALUES(?,?,?,?)") {
+            for e in sums.values {
+                sqlite3_reset(ins)
+                sqlite3_bind_int64(ins, 1, Int64(e.day)); bind(ins, 2, e.key)
+                sqlite3_bind_int64(ins, 3, e.bytesIn); sqlite3_bind_int64(ins, 4, e.bytesOut)
+                if sqlite3_step(ins) != SQLITE_DONE { ok = false }
+            }
+            sqlite3_finalize(ins)
+        } else { ok = false }
+        if ok, exec("COMMIT") { return true }
+        exec("ROLLBACK")
+        return false
     }
 
     deinit { sqlite3_close(db) }

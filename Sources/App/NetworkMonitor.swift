@@ -108,7 +108,7 @@ final class NetworkMonitor: ObservableObject {
     private func openStore() {
         guard !storeOpened else { return }
         storeOpened = true
-        store = HistoryStore()
+        store = HistoryStore(migrate: role == .primary)
         guard let store else { return }
         let now = NetworkMonitor.minute()
         store.prune(nowMinute: now)

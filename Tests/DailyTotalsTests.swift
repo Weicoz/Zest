@@ -204,4 +204,32 @@ extension DailyTotalsTests {
         XCTAssertEqual(appTotals(store, .today, now: d), ["A": 6])
         XCTAssertEqual(total(store, .today, now: d), 9)
     }
+
+    func testUpgradeBackfillsAppDailyOnceFromMinutes() throws {
+        var raw: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(url.path, &raw), SQLITE_OK)
+        let m1 = minute(date(2026, 11, 7, 9)), m2 = minute(date(2026, 11, 7, 10)), m0 = minute(date(2026, 11, 6, 23, 59))
+        let oldSQL = """
+            CREATE TABLE traffic(minute INTEGER NOT NULL, app_key TEXT NOT NULL, bytes_in INTEGER NOT NULL,
+                bytes_out INTEGER NOT NULL, PRIMARY KEY(minute, app_key)) WITHOUT ROWID;
+            CREATE TABLE apps(app_key TEXT PRIMARY KEY, name TEXT NOT NULL, bundle TEXT, kind INTEGER NOT NULL);
+            INSERT INTO traffic VALUES(\(m1), 'A', 40, 2);
+            INSERT INTO traffic VALUES(\(m2), 'A', 2, 1);
+            INSERT INTO traffic VALUES(\(m0), 'A', 100, 0);
+            INSERT INTO apps VALUES('A', 'Alpha', NULL, 0);
+            """
+        XCTAssertEqual(sqlite3_exec(raw, oldSQL, nil, nil, nil), SQLITE_OK)
+        sqlite3_close(raw)
+        let now = date(2026, 11, 7, 20)
+        // 查看器先打开：不得建表也不回填，主进程之后仍能回填。
+        _ = try XCTUnwrap(HistoryStore(url: url, migrate: false, calendar: cal))
+        do {
+            let store = try XCTUnwrap(HistoryStore(url: url, calendar: cal))
+            XCTAssertEqual(appTotals(store, .today, now: now), ["A": 45])
+            XCTAssertEqual(appTotals(store, .yesterday, now: now), ["A": 100])
+        }
+        let again = try XCTUnwrap(HistoryStore(url: url, calendar: cal))   // 重开不重复累加
+        XCTAssertEqual(appTotals(again, .today, now: now), ["A": 45])
+        XCTAssertEqual(again.appTotals(TotalsRange.today.dayRange(now: now, calendar: cal)).first?.name, "Alpha")
+    }
 }
