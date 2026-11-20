@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E1E1E1E1E1E1E1E11610000 /* FlowcatImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01610000 /* FlowcatImportTests.swift */; };
 		E1E1E1E1E1E1E1E11550000 /* DiskLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */; };
 		E1E1E1E1E1E1E1E11580000 /* WriteAlertTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */; };
 		E1E1E1E1E1E1E1E11600000 /* DiskHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01600000 /* DiskHealthTests.swift */; };
@@ -16,6 +17,7 @@
 		E1E1E1E1E1E1E1E11590000 /* DiskHealthPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01590000 /* DiskHealthPage.swift */; };
 		E1E1E1E1E1E1E1E11520000 /* DiskIOService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01520000 /* DiskIOService.swift */; };
 		E1E1E1E1E1E1E1E11510000 /* HistoryStore+Disk.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01510000 /* HistoryStore+Disk.swift */; };
+		E1E1E1E1E1E1E1E11630000 /* FlowcatImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01630000 /* FlowcatImporter.swift */; };
 		E1E1E1E1E1E1E1E11500000 /* DiskLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01500000 /* DiskLedger.swift */; };
 		E1E1E1E1E1E1E1E11560000 /* HistoryStore+WriteAlerts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01560000 /* HistoryStore+WriteAlerts.swift */; };
 		A3C5D7E9F1B20468AC13E5F7 /* AppsRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */; };
@@ -73,6 +75,7 @@
 		9DFDD916237219E6BED48248 /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09EC15D1B60B63157487397 /* StatusItemController.swift */; };
 		A189AEB823337EBA13F5E99E /* NetworkWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36F1D43B993AD7C9830BCB87 /* NetworkWindowView.swift */; };
 		A3BCAA52B55F77470DEA489B /* NetworkWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72E3D82707E62D88E189E3F0 /* NetworkWindowController.swift */; };
+		E1E1E1E1E1E1E1E11620000 /* FlowcatImportSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01620000 /* FlowcatImportSection.swift */; };
 		ACCBCB89FBABB2C917E8155B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E4C1DD539E6F599D227D9F5 /* SettingsView.swift */; };
 		AFA891B9E30E072478ED2D96 /* SMCSensors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E7165940448D89AE9909CE /* SMCSensors.swift */; };
 		AFDDD31ED17CAF331B60F11D /* MemorySampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40BD6A8A1AE95306483BD34 /* MemorySampler.swift */; };
@@ -115,6 +118,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E0E0E0E0E0E0E0E01610000 /* FlowcatImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FlowcatImportTests.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskLedgerTests.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WriteAlertTests.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01600000 /* DiskHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskHealthTests.swift"; sourceTree = "<group>"; };
@@ -124,6 +128,7 @@
 		E0E0E0E0E0E0E0E01590000 /* DiskHealthPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskHealthPage.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01520000 /* DiskIOService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskIOService.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01510000 /* HistoryStore+Disk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HistoryStore+Disk.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01630000 /* FlowcatImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FlowcatImporter.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01500000 /* DiskLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskLedger.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01560000 /* HistoryStore+WriteAlerts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HistoryStore+WriteAlerts.swift"; sourceTree = "<group>"; };
 		B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsRange.swift; sourceTree = "<group>"; };
@@ -154,6 +159,7 @@
 		237F12041AE99F4B2B86937C /* AnomalyDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnomalyDetector.swift; sourceTree = "<group>"; };
 		2A9B06F05763C57E9C1CB62E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		2CA557660D52C32CF219D142 /* NettopParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NettopParser.swift; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01620000 /* FlowcatImportSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FlowcatImportSection.swift"; sourceTree = "<group>"; };
 		2E4C1DD539E6F599D227D9F5 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		36F1D43B993AD7C9830BCB87 /* NetworkWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkWindowView.swift; sourceTree = "<group>"; };
 		3BF4215BFF9449AB5B635E83 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
@@ -235,6 +241,7 @@
 				0CC1F6BB6AA0880B5DB95285 /* CoreLogicTests.swift */,
 				AB2574F221F87BEB9985F5A7 /* HistoryGeoTests.swift */,
 				286F663AA65E6879269A61B9 /* DailyTotalsTests.swift */,
+				E0E0E0E0E0E0E0E01610000 /* FlowcatImportTests.swift */,
 				E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */,
 				E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */,
 				E0E0E0E0E0E0E0E01600000 /* DiskHealthTests.swift */,
@@ -317,6 +324,7 @@
 				8CF03889E892B41C9E1931BE /* DailyTotals.swift */,
 				417A3EF46497DC1982500D0B /* LinkRecorder.swift */,
 				E0E0E0E0E0E0E0E01510000 /* HistoryStore+Disk.swift */,
+				E0E0E0E0E0E0E0E01630000 /* FlowcatImporter.swift */,
 				E0E0E0E0E0E0E0E01500000 /* DiskLedger.swift */,
 				E0E0E0E0E0E0E0E01560000 /* HistoryStore+WriteAlerts.swift */,
 				669BBBF4C9E61D7B898D356C /* HistoryStore+Links.swift */,
@@ -381,6 +389,7 @@
 				9944E4BB1E3C6A8AE6871404 /* PanelView.swift */,
 				08D341EAEB8396416924067E /* ProcessActionMenu.swift */,
 				060C1F7C09115A0E6A75CE6A /* ProcessesView.swift */,
+				E0E0E0E0E0E0E0E01620000 /* FlowcatImportSection.swift */,
 				2E4C1DD539E6F599D227D9F5 /* SettingsView.swift */,
 				4AD75E1ED77EE8807C6B3755 /* NetworkWindow */,
 			);
@@ -531,6 +540,7 @@
 				29F787AE4A90D70D8585E59E /* CoreLogicTests.swift in Sources */,
 				08FE8FCE92C3A047C065891B /* HistoryGeoTests.swift in Sources */,
 				B92CB18C2F3969219E6272CC /* DailyTotalsTests.swift in Sources */,
+				E1E1E1E1E1E1E1E11610000 /* FlowcatImportTests.swift in Sources */,
 				E1E1E1E1E1E1E1E11550000 /* DiskLedgerTests.swift in Sources */,
 				E1E1E1E1E1E1E1E11580000 /* WriteAlertTests.swift in Sources */,
 				E1E1E1E1E1E1E1E11600000 /* DiskHealthTests.swift in Sources */,
@@ -596,6 +606,7 @@
 				76428640E2B8AD473C37712C /* DailyTotals.swift in Sources */,
 				B08060C4C29C063E871D64C4 /* LinkRecorder.swift in Sources */,
 				E1E1E1E1E1E1E1E11510000 /* HistoryStore+Disk.swift in Sources */,
+				E1E1E1E1E1E1E1E11630000 /* FlowcatImporter.swift in Sources */,
 				E1E1E1E1E1E1E1E11500000 /* DiskLedger.swift in Sources */,
 				E1E1E1E1E1E1E1E11560000 /* HistoryStore+WriteAlerts.swift in Sources */,
 				8D611FAC662287625A1F0724 /* HistoryStore+Links.swift in Sources */,
@@ -616,6 +627,7 @@
 				BB985E97A4ED56216B59A996 /* RingBuffer.swift in Sources */,
 				476422FFB86DA72866CC474A /* SMCBridge.c in Sources */,
 				AFA891B9E30E072478ED2D96 /* SMCSensors.swift in Sources */,
+				E1E1E1E1E1E1E1E11620000 /* FlowcatImportSection.swift in Sources */,
 				ACCBCB89FBABB2C917E8155B /* SettingsView.swift in Sources */,
 				10F892A919B1D0E02643213D /* SettingsWindowController.swift in Sources */,
 				B1362DFA0BA4F2D378A22D40 /* SnapshotExporter.swift in Sources */,

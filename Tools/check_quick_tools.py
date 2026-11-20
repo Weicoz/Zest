@@ -53,7 +53,8 @@ def main():
              ROOT / "Sources/UI/NetworkWindow/DiskWindowView.swift",
              ROOT / "Sources/UI/NetworkWindow/DiskWindowController.swift",
              ROOT / "Sources/UI/NetworkWindow/DiskAlertsPage.swift",
-             ROOT / "Sources/UI/NetworkWindow/DiskHealthPage.swift"]
+             ROOT / "Sources/UI/NetworkWindow/DiskHealthPage.swift",
+             ROOT / "Sources/UI/FlowcatImportSection.swift"]
     catalog = json.loads((ROOT / "Resources/Localizable.xcstrings").read_text())["strings"]
     for file in files:
         for raw in re.findall(r'L10n\.text\("((?:[^"\\]|\\.)*)"(?:\)|,\s*defaultValue:)', file.read_text()):

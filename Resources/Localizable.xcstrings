@@ -8070,6 +8070,276 @@
           }
         }
       }
+    },
+    "从流量喵 Plus 导入" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from FlowCat Plus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从流量喵 Plus 导入"
+          }
+        }
+      }
+    },
+    "导入…" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入…"
+          }
+        }
+      }
+    },
+    "只读流量喵 Plus 的数据目录，导入每日整机总量、应用流量、链路汇总与磁盘读写；同一日期同一类别会被覆盖，重复导入不会累加。小时数据、域名与写入提醒不导入。" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reads the FlowCat Plus data folder (read-only) and imports daily device totals, app traffic, link summaries and disk reads/writes. A date and category already present is overwritten, so repeated imports never add up. Hourly data, domains and write alerts are not imported."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只读流量喵 Plus 的数据目录，导入每日整机总量、应用流量、链路汇总与磁盘读写；同一日期同一类别会被覆盖，重复导入不会累加。小时数据、域名与写入提醒不导入。"
+          }
+        }
+      }
+    },
+    "整机总量" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device totals"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "整机总量"
+          }
+        }
+      }
+    },
+    "链路汇总" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link summary"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链路汇总"
+          }
+        }
+      }
+    },
+    "磁盘读写" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disk reads/writes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "磁盘读写"
+          }
+        }
+      }
+    },
+    "找不到流量喵 Plus 的数据目录，未导入任何数据。" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The FlowCat Plus data folder was not found. Nothing was imported."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到流量喵 Plus 的数据目录，未导入任何数据。"
+          }
+        }
+      }
+    },
+    "文件 %@ 已损坏，未导入任何数据，已有数据不变。" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File %@ is corrupt. Nothing was imported and existing data is unchanged."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文件 %@ 已损坏，未导入任何数据，已有数据不变。"
+          }
+        }
+      }
+    },
+    "写入历史库失败，已整体回滚，已有数据不变。" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Writing to the history database failed. Everything was rolled back and existing data is unchanged."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写入历史库失败，已整体回滚，已有数据不变。"
+          }
+        }
+      }
+    },
+    "历史库不可用，未导入任何数据。" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The history database is unavailable. Nothing was imported."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史库不可用，未导入任何数据。"
+          }
+        }
+      }
+    },
+    "导入失败：" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import failed: "
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入失败："
+          }
+        }
+      }
+    },
+    "导入完成" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import complete"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入完成"
+          }
+        }
+      }
+    },
+    "%@：%lld 天" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: %lld days"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@：%lld 天"
+          }
+        }
+      }
+    },
+    "跳过 %@：找不到 %@" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipped %@: %@ not found"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过 %@：找不到 %@"
+          }
+        }
+      }
+    },
+    "跳过 %@ 日期 %@：无法识别的日期" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipped %@ date %@: unrecognized date"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过 %@ 日期 %@：无法识别的日期"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

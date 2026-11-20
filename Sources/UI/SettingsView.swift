@@ -153,6 +153,7 @@ private struct NetworkSettings: View {
             }
             if let network {
                 HistorySection(network: network, settings: settings)
+                FlowcatImportSection(network: network)
             }
         }
         .formStyle(.grouped)

@@ -187,6 +187,19 @@ final class NetworkMonitor: ObservableObject {
         }
     }
 
+    /// 从流量喵 Plus 导入每日汇总。只有主进程写库；在采集队列上执行，完成后在主线程回调。
+    func importFlowcat(directory: URL = FlowcatImporter.defaultDirectory, completion: @escaping (FlowcatImportReport) -> Void) {
+        queue.async { [self] in
+            var report = FlowcatImportReport()
+            if role == .primary {
+                openStore()
+                report = FlowcatImporter.run(directory: directory, store: store)
+                refreshHistory()
+            } else { report.failure = .storeUnavailable }
+            DispatchQueue.main.async { completion(report) }
+        }
+    }
+
     func stop() {
         queue.async { [self] in
             enabled = false
