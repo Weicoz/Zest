@@ -38,8 +38,10 @@ extension HistoryStore {
     /// 阈值单位字节，0 关闭该档。超过（严格大于）阈值且本时段未提醒过的路径，在同一事务里记录并返回；任一步骤失败整体回滚并返回空（下次重试）。
     func checkWriteAlerts(hourBytes: UInt64, dayBytes: UInt64, now: Date, calendar: Calendar = .current) -> [WriteAlertRecord] {
         var found: [(tier: WriteAlertTier, period: Int, path: String, name: String, bytes: Int64)] = []
-        func scan(_ sql: String, key: Int, limit: UInt64, tier: WriteAlertTier) {
-            guard limit > 0, let s = prepare(sql) else { return }
+        func scan(_ sql: String, keys: [Int], limit: UInt64, tier: WriteAlertTier) {
+            guard limit > 0 else { return }
+            for key in keys {
+            guard let s = prepare(sql) else { continue }
             defer { sqlite3_finalize(s) }
             sqlite3_bind_int64(s, 1, Int64(key)); sqlite3_bind_int64(s, 2, Int64(clamping: limit))
             while sqlite3_step(s) == SQLITE_ROW {
@@ -47,13 +49,19 @@ extension HistoryStore {
                 let name = text(s, 1).flatMap { $0.isEmpty ? nil : $0 } ?? (path as NSString).lastPathComponent
                 found.append((tier, key, path, name, sqlite3_column_int64(s, 2)))
             }
+            }
         }
+        // 同时检查上一时段，避免写入在时段末越线、检查落在下一时段而漏报；去重表保证不重复。
+        let hourKeys = [calendar.date(byAdding: .hour, value: -1, to: now)].compactMap { $0 }.map { DayRange.hourKey(of: $0, calendar: calendar) }
+            + [DayRange.hourKey(of: now, calendar: calendar)]
+        let dayKeys = [calendar.date(byAdding: .day, value: -1, to: now)].compactMap { $0 }.map { DayRange.key(of: $0, calendar: calendar) }
+            + [DayRange.key(of: now, calendar: calendar)]
         scan("""
             SELECT h.path, (SELECT name FROM disk_days d WHERE d.path = h.path ORDER BY day DESC LIMIT 1), h.bytes_written
             FROM disk_hours h WHERE h.hour = ?1 AND h.bytes_written > ?2 ORDER BY h.path
-            """, key: DayRange.hourKey(of: now, calendar: calendar), limit: hourBytes, tier: .hour)
+            """, keys: hourKeys, limit: hourBytes, tier: .hour)
         scan("SELECT path, name, bytes_written FROM disk_days WHERE day = ?1 AND bytes_written > ?2 ORDER BY path",
-             key: DayRange.key(of: now, calendar: calendar), limit: dayBytes, tier: .day)
+             keys: dayKeys, limit: dayBytes, tier: .day)
         guard !found.isEmpty, exec("BEGIN IMMEDIATE") else { return [] }
         guard let ins = prepare("INSERT OR IGNORE INTO write_alerts(period, tier, path, name, bytes_written, ts) VALUES(?,?,?,?,?,?)") else {
             exec("ROLLBACK"); return []

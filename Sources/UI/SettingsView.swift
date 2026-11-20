@@ -148,7 +148,7 @@ private struct NetworkSettings: View {
                 Stepper(value: $settings.writeAlertDayGB, in: 0...100_000) {
                     Text("\(L10n.text("每天写入提醒阈值（GB）")): \(settings.writeAlertDayGB)")
                 }
-                Text(L10n.text("某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。"))
+                Text(L10n.text("某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest 发送通知。"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let network {

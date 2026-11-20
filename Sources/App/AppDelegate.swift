@@ -96,6 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateSampleOptions()
         engine.start(interval: settings.refreshInterval)
         network.start()
+        diskService.setThresholds(hourGB: settings.writeAlertHourGB, dayGB: settings.writeAlertDayGB)   // 先于 start，队列保序
         diskService.start()
         settings.$writeAlertHourGB.combineLatest(settings.$writeAlertDayGB).sink { [diskService] h, d in
             diskService.setThresholds(hourGB: h, dayGB: d)

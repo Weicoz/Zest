@@ -70,6 +70,16 @@ final class WriteAlertTests: XCTestCase {
         XCTAssertEqual(check(s, now: at(5, 10, 2)).filter { $0.path == "/bin/b" }.count, 2)   // 另一程序独立
     }
 
+    func testCrossingAtPeriodEndStillAlertsOnceNextPeriod() throws {
+        let s = try XCTUnwrap(HistoryStore(url: url, calendar: cal))
+        write(s, "/bin/a", 3 * gb, at(5, 10, 59))
+        XCTAssertEqual(check(s, now: at(5, 11, 0)).map(\.tier), [.hour])   // 检查晚到下一整点仍提醒
+        XCTAssertTrue(check(s, now: at(5, 11, 1)).isEmpty)
+        write(s, "/bin/b", 11 * gb, at(5, 23, 59))
+        XCTAssertEqual(check(s, hour: 0, now: at(6, 0, 0)).map(\.tier), [.day])   // 跨日同理
+        XCTAssertTrue(check(s, hour: 0, now: at(6, 0, 1)).isEmpty)
+    }
+
     func testZeroDisablesTier() throws {
         let s = try XCTUnwrap(HistoryStore(url: url, calendar: cal))
         write(s, "/bin/a", 11 * gb, at(5, 9))

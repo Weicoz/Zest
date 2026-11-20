@@ -82,9 +82,10 @@ final class DiskIOService: @unchecked Sendable {
     private func flush() {
         guard let store, !accumulator.isEmpty else { return }
         let batch = accumulator.drain()
-        guard store.addDisk(batch, at: Date()) else { accumulator.restore(batch); return }
+        let now = Date()
+        guard store.addDisk(batch, at: now) else { accumulator.restore(batch); return }
         let gb = UInt64(1) << 30
-        for a in store.checkWriteAlerts(hourBytes: UInt64(max(hourGB, 0)) * gb, dayBytes: UInt64(max(dayGB, 0)) * gb, now: Date()) {
+        for a in store.checkWriteAlerts(hourBytes: UInt64(max(hourGB, 0)) * gb, dayBytes: UInt64(max(dayGB, 0)) * gb, now: now) {
             notify(a)
         }
     }
@@ -94,7 +95,15 @@ final class DiskIOService: @unchecked Sendable {
         content.title = "Zest · \(L10n.text("写入提醒"))"
         content.body = String(format: L10n.text(a.tier == .hour ? "%1$@ 本小时已写入 %2$@" : "%1$@ 今日已写入 %2$@"),
                               a.name, Fmt.bytes(Double(a.bytesWritten)))
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        let center = UNUserNotificationCenter.current()
+        let send = { center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)) }
+        center.getNotificationSettings { s in
+            switch s.authorizationStatus {
+            case .denied: break   // 记录已写入，不发通知
+            case .notDetermined: center.requestAuthorization(options: [.alert, .sound]) { ok, _ in if ok { send() } }
+            default: send()
+            }
+        }
     }
 
     private func snapshots() -> [DiskProcessSnapshot] {

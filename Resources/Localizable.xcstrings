@@ -7765,24 +7765,6 @@
         }
       }
     },
-    "某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。" : {
-      "comment" : "设置：写入提醒说明",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sends a system notification when a program writes more than the threshold to disk within a local clock hour or local day. Each tier alerts once per program per period. Set 0 to turn a tier off."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。"
-          }
-        }
-      }
-    },
     "%1$@ 本小时已写入 %2$@" : {
       "comment" : "写入提醒通知正文，%1$@ 程序名，%2$@ 写入量",
       "extractionState" : "manual",
@@ -7869,6 +7851,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每天"
+          }
+        }
+      }
+    },
+    "某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest 发送通知。" : {
+      "comment" : "设置：写入提醒说明",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sends a system notification when a program writes more than the threshold to disk within a local clock hour or local day. Each tier alerts once per program per period. Set 0 to turn a tier off. Zest must be allowed to send notifications."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest 发送通知。"
           }
         }
       }
