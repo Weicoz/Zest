@@ -44,7 +44,8 @@ def main():
             assert normalize(values[0]) == normalize(values[1]), "Format argument mismatch: " + key
     keys = set()
     files = [ROOT / "Sources/Core/QuickTool.swift", ROOT / "Sources/App/QuickToolsController.swift",
-             ROOT / "Sources/App/ToolCleaner.swift", ROOT / "Sources/App/ToolHotkeys.swift", ROOT / "Sources/UI/QuickToolsView.swift"]
+             ROOT / "Sources/App/ToolCleaner.swift", ROOT / "Sources/App/ToolHotkeys.swift", ROOT / "Sources/UI/QuickToolsView.swift",
+             ROOT / "Sources/UI/NetworkWindow/NetworkLiveLinksPage.swift"]
     catalog = json.loads((ROOT / "Resources/Localizable.xcstrings").read_text())["strings"]
     for file in files:
         for raw in re.findall(r'L10n\.text\("((?:[^"\\]|\\.)*)"(?:\)|,\s*defaultValue:)', file.read_text()):

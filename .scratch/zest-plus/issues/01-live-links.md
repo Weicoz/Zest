@@ -20,3 +20,9 @@
 - [ ] `VERIFY_TIER=full BASE=main Tools/verify.sh` 末行 `结论：通过`
 - [ ] 新增界面文字含 `zh-Hans` 与 `en`，`Tools/check_quick_tools.py` 通过
 - [ ] 启动 `build/Zest.app` 截图验收，写明未看画面
+
+## 偏差（2026-11-20 用户确认）
+
+- 采样节奏：链路采样只在网络窗口进程（`NetworkMonitor.Role.viewer`）运行，固定 2 秒，沿用「查看器自行采集实时数据」的模式；累计从窗口打开起算，界面写明「本窗口打开以来」。主进程本票不采样，8 秒后台采样留到票 04 写库时做。
+- 出口取 `chains[0]`（Mihomo 实测：chains 顺序为节点在前、策略组在后，末项是最外层策略组），即流量离开的最后一跳。
+- 第一份快照只作基线，不计入累计。

@@ -6,7 +6,7 @@
 import SwiftUI
 
 enum NetworkPage: String, CaseIterable, Identifiable {
-    case overview, apps, connections, lan, topology, alerts
+    case overview, apps, connections, links, lan, topology, alerts
     var id: String { rawValue }
 
     var title: String {
@@ -14,6 +14,7 @@ enum NetworkPage: String, CaseIterable, Identifiable {
         case .overview: return L10n.text("总览")
         case .apps: return L10n.text("tab.apps", defaultValue: "应用")
         case .connections: return L10n.text("tab.connections", defaultValue: "连接")
+        case .links: return L10n.text("tab.links", defaultValue: "链路")
         case .lan: return L10n.text("局域网")
         case .topology: return L10n.text("拓扑")
         case .alerts: return L10n.text("告警")
@@ -25,6 +26,7 @@ enum NetworkPage: String, CaseIterable, Identifiable {
         case .overview: return "gauge.with.dots.needle.50percent"
         case .apps: return "square.grid.2x2"
         case .connections: return "point.3.connected.trianglepath.dotted"
+        case .links: return "arrow.triangle.branch"
         case .lan: return "wifi.router"
         case .topology: return "circle.hexagongrid"
         case .alerts: return "bell.badge"
@@ -37,6 +39,7 @@ struct NetworkWindowView: View {
     @ObservedObject var settings: AppSettings
     @AppStorage("networkPage") private var page = NetworkPage.overview
     @State private var selectedApp: String?
+    @StateObject private var liveLinks = LiveLinksService()
 
     var body: some View {
         HStack(spacing: 0) {
@@ -48,6 +51,7 @@ struct NetworkWindowView: View {
                 case .overview: NetworkOverviewPage(monitor: monitor, showApp: show(app:))
                 case .apps: NetworkAppsPage(monitor: monitor, settings: settings, selection: $selectedApp)
                 case .connections: NetworkConnectionsPage(monitor: monitor, settings: settings)
+                case .links: NetworkLiveLinksPage(service: liveLinks, settings: settings)
                 case .lan: NetworkLANPage(monitor: monitor)
                 case .topology: NetworkTopologyPage(monitor: monitor, showApp: show(app:))
                 case .alerts: NetworkAlertsPage(monitor: monitor, settings: settings)
@@ -58,6 +62,9 @@ struct NetworkWindowView: View {
         .background(Palette.panelBackground)
         .onChange(of: page) { p in if p == .alerts { monitor.markAlertsRead() } }
         .id(settings.appLanguage)
+        // 链路采样只在窗口进程运行；换页不中断，累计从窗口打开起算。
+        .onAppear { if monitor.role == .viewer { liveLinks.start() } }
+        .onDisappear { liveLinks.stop() }
     }
 
     private func show(app key: String) {

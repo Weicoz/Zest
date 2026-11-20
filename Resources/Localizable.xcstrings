@@ -6782,6 +6782,384 @@
           }
         }
       }
+    },
+    "tab.links" : {
+      "comment" : "网络窗口侧边栏页签与链路页标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Links"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "链路"
+          }
+        }
+      }
+    },
+    "%lld 条当前链路 · 累计为本窗口打开以来" : {
+      "comment" : "链路页副标题，%lld 为当前链路数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld live links · totals since this window opened"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 条当前链路 · 累计为本窗口打开以来"
+          }
+        }
+      }
+    },
+    "域名" : {
+      "comment" : "链路页表头",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domain"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "域名"
+          }
+        }
+      }
+    },
+    "目标 IP" : {
+      "comment" : "链路页表头",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Destination IP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "目标 IP"
+          }
+        }
+      }
+    },
+    "端口" : {
+      "comment" : "链路页表头",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "端口"
+          }
+        }
+      }
+    },
+    "命中规则" : {
+      "comment" : "链路页表头",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matched rule"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命中规则"
+          }
+        }
+      }
+    },
+    "策略链" : {
+      "comment" : "链路页表头",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Policy chain"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "策略链"
+          }
+        }
+      }
+    },
+    "出口" : {
+      "comment" : "链路页表头",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出口"
+          }
+        }
+      }
+    },
+    "下行速率" : {
+      "comment" : "链路页表头",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Down rate"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下行速率"
+          }
+        }
+      }
+    },
+    "上行速率" : {
+      "comment" : "链路页表头",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up rate"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上行速率"
+          }
+        }
+      }
+    },
+    "按规则" : {
+      "comment" : "链路页累计卡片标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By rule"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按规则"
+          }
+        }
+      }
+    },
+    "按出口" : {
+      "comment" : "链路页累计卡片标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By exit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按出口"
+          }
+        }
+      }
+    },
+    "按应用" : {
+      "comment" : "链路页累计卡片标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By app"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按应用"
+          }
+        }
+      }
+    },
+    "未归属" : {
+      "comment" : "链路页：总量与逐链路之和的差额",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unattributed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未归属"
+          }
+        }
+      }
+    },
+    "总量差额" : {
+      "comment" : "链路页未归属卡片行名",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total difference"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "总量差额"
+          }
+        }
+      }
+    },
+    "累计从本窗口打开起计算，不保存。总量取 Bettbox 自报值，各行之和与总量的差额记为“未归属”。" : {
+      "comment" : "链路页脚注",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Totals count from when this window opened and are not saved. The total is the one Bettbox reports; the gap between it and the sum of all rows is shown as “Unattributed”."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累计从本窗口打开起计算，不保存。总量取 Bettbox 自报值，各行之和与总量的差额记为“未归属”。"
+          }
+        }
+      }
+    },
+    "正在连接 Bettbox…" : {
+      "comment" : "链路页状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to Bettbox…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在连接 Bettbox…"
+          }
+        }
+      }
+    },
+    "Bettbox 未运行，或控制器无法连接" : {
+      "comment" : "链路页状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bettbox is not running, or its controller is unreachable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bettbox 未运行，或控制器无法连接"
+          }
+        }
+      }
+    },
+    "找不到 Bettbox 配置，未读取链路" : {
+      "comment" : "链路页状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bettbox config not found; links are not read"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到 Bettbox 配置，未读取链路"
+          }
+        }
+      }
+    },
+    "Bettbox 控制器认证失败，请检查配置里的 secret" : {
+      "comment" : "链路页状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bettbox controller authentication failed; check the secret in its config"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bettbox 控制器认证失败，请检查配置里的 secret"
+          }
+        }
+      }
+    },
+    "无法解析 Bettbox 返回的连接数据" : {
+      "comment" : "链路页状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not parse the connection data returned by Bettbox"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法解析 Bettbox 返回的连接数据"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
