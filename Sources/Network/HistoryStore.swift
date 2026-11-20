@@ -64,6 +64,10 @@ final class HistoryStore {
             CREATE INDEX IF NOT EXISTS alerts_ts ON alerts(ts);
             CREATE TABLE IF NOT EXISTS daily_physical(
                 day INTEGER PRIMARY KEY, bytes_in INTEGER NOT NULL, bytes_out INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS daily_apps(
+                day INTEGER NOT NULL, app_key TEXT NOT NULL,
+                bytes_in INTEGER NOT NULL, bytes_out INTEGER NOT NULL,
+                PRIMARY KEY(day, app_key)) WITHOUT ROWID;
             """)
         if !ok { return nil }
     }
@@ -104,7 +108,12 @@ final class HistoryStore {
             INSERT INTO traffic(minute, app_key, bytes_in, bytes_out) VALUES(?,?,?,?)
             ON CONFLICT(minute, app_key) DO UPDATE SET bytes_in = bytes_in + excluded.bytes_in,
                                                        bytes_out = bytes_out + excluded.bytes_out
-            """), let app = prepare("INSERT OR REPLACE INTO apps(app_key, name, bundle, kind) VALUES(?,?,?,?)") {
+            """), let app = prepare("INSERT OR REPLACE INTO apps(app_key, name, bundle, kind) VALUES(?,?,?,?)"),
+            let dayApp = prepare("""
+            INSERT INTO daily_apps(day, app_key, bytes_in, bytes_out) VALUES(?,?,?,?)
+            ON CONFLICT(day, app_key) DO UPDATE SET bytes_in = bytes_in + excluded.bytes_in, bytes_out = bytes_out + excluded.bytes_out
+            """) {
+            let appDay = DayRange.key(of: Date(timeIntervalSince1970: Double(minute) * 60), calendar: calendar)
             for (key, t) in traffic where t.bytesIn > 0 || t.bytesOut > 0 {
                 sqlite3_reset(ins)
                 sqlite3_bind_int64(ins, 1, Int64(minute))
@@ -112,6 +121,12 @@ final class HistoryStore {
                 sqlite3_bind_int64(ins, 3, Int64(t.bytesIn))
                 sqlite3_bind_int64(ins, 4, Int64(t.bytesOut))
                 if sqlite3_step(ins) != SQLITE_DONE { ok = false }
+                sqlite3_reset(dayApp)
+                sqlite3_bind_int64(dayApp, 1, Int64(appDay))
+                bind(dayApp, 2, key)
+                sqlite3_bind_int64(dayApp, 3, Int64(t.bytesIn))
+                sqlite3_bind_int64(dayApp, 4, Int64(t.bytesOut))
+                if sqlite3_step(dayApp) != SQLITE_DONE { ok = false }
                 if let m = meta[key] {
                     sqlite3_reset(app)
                     bind(app, 1, key); bind(app, 2, m.name); bind(app, 3, m.bundlePath)
@@ -121,6 +136,7 @@ final class HistoryStore {
             }
             sqlite3_finalize(ins)
             sqlite3_finalize(app)
+            sqlite3_finalize(dayApp)
         } else if !traffic.isEmpty { ok = false }
         if let physical, hasPhysical {
             guard let daily = prepare("""
@@ -176,11 +192,11 @@ final class HistoryStore {
         if let s = prepare("DELETE FROM alerts WHERE ts < ?") {
             sqlite3_bind_double(s, 1, now.timeIntervalSince1970 - Double(HistoryStore.retentionMinutes * 60)); sqlite3_step(s); sqlite3_finalize(s)
         }
-        exec("DELETE FROM apps WHERE app_key NOT IN (SELECT DISTINCT app_key FROM traffic)")
+        exec("DELETE FROM apps WHERE app_key NOT IN (SELECT app_key FROM traffic UNION SELECT app_key FROM daily_apps)")
     }
 
     func clearAll() {
-        exec("DELETE FROM traffic; DELETE FROM apps; DELETE FROM alerts; DELETE FROM daily_physical; VACUUM;")
+        exec("DELETE FROM traffic; DELETE FROM apps; DELETE FROM alerts; DELETE FROM daily_physical; DELETE FROM daily_apps; VACUUM;")
     }
 
     // MARK: 查询
@@ -216,6 +232,26 @@ final class HistoryStore {
         guard sqlite3_step(s) == SQLITE_ROW else { return zero }
         return InterfaceCounters(bytesIn: UInt64(max(sqlite3_column_int64(s, 0), 0)),
                                  bytesOut: UInt64(max(sqlite3_column_int64(s, 1), 0)))
+    }
+
+    /// 范围内各应用的日汇总排行（按总量降序）。与整机总量分开，不互相校正。
+    func appTotals(_ range: DayRange) -> [AppDayTotal] {
+        guard let s = prepare("""
+            SELECT d.app_key, COALESCE(a.name, d.app_key), a.bundle, COALESCE(a.kind, 2), SUM(d.bytes_in), SUM(d.bytes_out)
+            FROM daily_apps d LEFT JOIN apps a ON a.app_key = d.app_key
+            WHERE d.day >= ? AND d.day <= ? GROUP BY d.app_key ORDER BY SUM(d.bytes_in) + SUM(d.bytes_out) DESC
+            """) else { return [] }
+        defer { sqlite3_finalize(s) }
+        sqlite3_bind_int64(s, 1, Int64(range.from))
+        sqlite3_bind_int64(s, 2, Int64(range.to))
+        var result: [AppDayTotal] = []
+        while sqlite3_step(s) == SQLITE_ROW {
+            result.append(AppDayTotal(key: text(s, 0) ?? "", name: text(s, 1) ?? "", bundlePath: text(s, 2),
+                                      kind: ProcessKind(rawValue: Int(sqlite3_column_int(s, 3))) ?? .system,
+                                      bytesIn: UInt64(max(sqlite3_column_int64(s, 4), 0)),
+                                      bytesOut: UInt64(max(sqlite3_column_int64(s, 5), 0))))
+        }
+        return result
     }
 
     func appTotals(sinceMinute: Int) -> [AppDayTotal] {

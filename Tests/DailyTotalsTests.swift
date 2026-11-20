@@ -145,3 +145,63 @@ final class DailyTotalsTests: XCTestCase {
         XCTAssertEqual(restarted.pending, InterfaceCounters(bytesIn: 0, bytesOut: 0))
     }
 }
+
+// 应用日汇总（票 03）
+extension DailyTotalsTests {
+    private func appTotals(_ store: HistoryStore, _ r: TotalsRange, now: Date) -> [String: UInt64] {
+        Dictionary(uniqueKeysWithValues: store.appTotals(r.dayRange(now: now, calendar: cal)).map { ($0.key, $0.total) })
+    }
+
+    private func addApp(_ store: HistoryStore, _ d: Date, _ key: String, _ bytes: Double) {
+        store.addMinute(minute(d), traffic: [key: TrafficPoint(bytesIn: bytes, bytesOut: 1)],
+                        meta: [key: AppMeta(key: key, name: key, bundlePath: nil, kind: .app)], calendar: cal)
+    }
+
+    func testAppRangesAcrossMonthBoundaryRankedAndSeparateFromPhysical() throws {
+        let store = try XCTUnwrap(HistoryStore(url: url))
+        addApp(store, date(2026, 10, 31, 23, 59), "A", 100)
+        addApp(store, date(2026, 11, 1, 0, 0), "A", 10)
+        addApp(store, date(2026, 11, 3, 8), "B", 500)
+        addApp(store, date(2026, 11, 7, 9), "A", 1000)
+        add(store, date(2026, 11, 7, 9), 7)             // 整机总量与应用互不校正
+        let now = date(2026, 11, 7, 15)
+        XCTAssertEqual(appTotals(store, .today, now: now), ["A": 1001])
+        XCTAssertTrue(appTotals(store, .yesterday, now: now).isEmpty)
+        XCTAssertEqual(appTotals(store, .last7Days, now: now), ["A": 1001 + 11, "B": 501])
+        XCTAssertEqual(appTotals(store, .thisMonth, now: now), ["A": 1012, "B": 501])
+        XCTAssertEqual(store.appTotals(TotalsRange.thisMonth.dayRange(now: now, calendar: cal)).map(\.key), ["A", "B"])
+        XCTAssertEqual(appTotals(store, .yesterday, now: date(2026, 11, 1, 9)), ["A": 101])
+        XCTAssertEqual(total(store, .today, now: now), 7)
+        XCTAssertEqual(store.appTotals(TotalsRange.today.dayRange(now: now, calendar: cal)).first?.name, "A")
+    }
+
+    func testAppDailySurvivesMinutePruneAndClear() throws {
+        let now = date(2026, 11, 7, 13)
+        let store = try XCTUnwrap(HistoryStore(url: url))
+        addApp(store, date(2026, 11, 6, 12), "A", 5)
+        store.prune(nowMinute: minute(now), now: now)
+        XCTAssertTrue(store.appTotals(sinceMinute: 0).isEmpty)
+        XCTAssertEqual(appTotals(store, .yesterday, now: now), ["A": 6])
+        XCTAssertEqual(store.appTotals(TotalsRange.yesterday.dayRange(now: now, calendar: cal)).first?.name, "A")
+        store.clearAll()
+        XCTAssertTrue(appTotals(store, .yesterday, now: now).isEmpty)
+    }
+
+    func testFailedWriteRollsBackAppDaily() throws {
+        let store = try XCTUnwrap(HistoryStore(url: url))
+        var raw: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(url.path, &raw), SQLITE_OK)
+        XCTAssertEqual(sqlite3_exec(raw, "CREATE TRIGGER failapp BEFORE INSERT ON daily_apps BEGIN SELECT RAISE(ABORT,'x'); END;",
+                                    nil, nil, nil), SQLITE_OK)
+        let d = date(2026, 11, 7, 10)
+        let t = ["A": TrafficPoint(bytesIn: 5, bytesOut: 1)]
+        XCTAssertFalse(store.addMinute(minute(d), traffic: t, meta: [:], physical: InterfaceCounters(bytesIn: 9, bytesOut: 1), calendar: cal))
+        XCTAssertTrue(store.appTotals(sinceMinute: 0).isEmpty)
+        XCTAssertEqual(total(store, .today, now: d), 0)
+        XCTAssertEqual(sqlite3_exec(raw, "DROP TRIGGER failapp", nil, nil, nil), SQLITE_OK)
+        sqlite3_close(raw)
+        XCTAssertTrue(store.addMinute(minute(d), traffic: t, meta: [:], physical: InterfaceCounters(bytesIn: 9, bytesOut: 1), calendar: cal))
+        XCTAssertEqual(appTotals(store, .today, now: d), ["A": 6])
+        XCTAssertEqual(total(store, .today, now: d), 9)
+    }
+}

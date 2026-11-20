@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A3C5D7E9F1B20468AC13E5F7 /* AppsRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */; };
 		20838B9228EE43181FF95B6C /* BettboxLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C198107A6212BA0052165423 /* BettboxLedgerTests.swift */; };
 		3F56D483B15BB31463B7D7DE /* NetworkLiveLinksPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */; };
 		F8EDE6359891122062C8C0FC /* DailyTotalsCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BDCA744D600381A855D0DF3 /* DailyTotalsCards.swift */; };
@@ -93,6 +94,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsRange.swift; sourceTree = "<group>"; };
 		C198107A6212BA0052165423 /* BettboxLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BettboxLedgerTests.swift; sourceTree = "<group>"; };
 		F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLiveLinksPage.swift; sourceTree = "<group>"; };
 		2BDCA744D600381A855D0DF3 /* DailyTotalsCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotalsCards.swift; sourceTree = "<group>"; };
@@ -231,6 +233,7 @@
 				F831F2578FB3F07D53D3CACE /* NetworkOverviewPage.swift */,
 				F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */,
 				2BDCA744D600381A855D0DF3 /* DailyTotalsCards.swift */,
+				B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */,
 				5A9920AB0B34A62EB3EB55CC /* NetworkTopologyPage.swift */,
 				72E3D82707E62D88E189E3F0 /* NetworkWindowController.swift */,
 				36F1D43B993AD7C9830BCB87 /* NetworkWindowView.swift */,
@@ -509,6 +512,7 @@
 				05B89019CD7B7E00139EB63D /* NetworkSummaryView.swift in Sources */,
 				3F56D483B15BB31463B7D7DE /* NetworkLiveLinksPage.swift in Sources */,
 				F8EDE6359891122062C8C0FC /* DailyTotalsCards.swift in Sources */,
+				A3C5D7E9F1B20468AC13E5F7 /* AppsRange.swift in Sources */,
 				EED370FA9D17D019EE45D688 /* NetworkTopologyPage.swift in Sources */,
 				9C8BB8A70819EB62E56707C6 /* BettboxLedger.swift in Sources */,
 				101D1516ACFF03B3AEC437FC /* BettboxClient.swift in Sources */,

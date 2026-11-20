@@ -32,6 +32,8 @@ struct HistorySummary: Equatable {
     var storeSize: Int64 = 0
     /// 整机总量（日汇总）：今日、昨日、7 天、本月。
     var totals: [TotalsRange: InterfaceCounters] = [:]
+    /// 应用流量日汇总排行（与整机总量分开）。
+    var appRanges: [TotalsRange: [AppDayTotal]] = [:]
 }
 
 final class NetworkMonitor: ObservableObject {
@@ -134,10 +136,15 @@ final class NetworkMonitor: ObservableObject {
         let day = store.totals(sinceMinute: start, untilMinute: now, bucket: bucket)
         let apps = store.appTotals(sinceMinute: now - HistoryStore.retentionMinutes)
         var totals: [TotalsRange: InterfaceCounters] = [:]
-        for r in TotalsRange.allCases { totals[r] = store.physicalTotals(r.dayRange(now: Date(), calendar: .current)) }
+        var appRanges: [TotalsRange: [AppDayTotal]] = [:]
+        for r in TotalsRange.allCases {
+            let range = r.dayRange(now: Date(), calendar: .current)
+            totals[r] = store.physicalTotals(range)
+            appRanges[r] = store.appTotals(range)
+        }
         let summary = HistorySummary(day: day, dayStartMinute: start, apps: apps,
                                      bytesIn: apps.reduce(0) { $0 &+ $1.bytesIn }, bytesOut: apps.reduce(0) { $0 &+ $1.bytesOut },
-                                     storeSize: store.fileSize, totals: totals)
+                                     storeSize: store.fileSize, totals: totals, appRanges: appRanges)
         DispatchQueue.main.async { self.history = summary }
     }
 

@@ -12,7 +12,7 @@ struct NetworkAppsPage: View {
     @Binding var selection: String?
     @State private var search = ""
     @State private var showSystem = true
-    @AppStorage("appsRange") private var range = HistoryRange.hour
+    @AppStorage("appsRange") private var range = AppsRange.hour
 
     var body: some View {
         let _ = settings.appLanguage
@@ -26,8 +26,8 @@ struct NetworkAppsPage: View {
                 }
                 .padding(8)
                 HStack(spacing: 4) {
-                    ForEach(HistoryRange.allCases) { r in
-                        ChipButton(title: r == .hour ? L10n.text("range.session", defaultValue: "本次") : L10n.text("24 小时"), count: nil, selected: range == r) { range = r }
+                    ForEach(AppsRange.allCases) { r in
+                        ChipButton(title: r.title, count: nil, selected: range == r) { range = r }
                     }
                     Spacer()
                 }
@@ -54,7 +54,7 @@ struct NetworkAppsPage: View {
 
             Group {
                 if let key = selection, let app = detailApp(key) {
-                    AppDetail(app: app, day: monitor.history.apps.first { $0.key == key }, daySeries: monitor.appDay[key],
+                    AppDetail(app: app, day: rangeTotals.first { $0.key == key }, daySeries: monitor.appDay[key],
                               range: range, flows: monitor.state.flows.filter { $0.appKey == key }, hostnames: monitor.hostnames,
                               resolve: settings.resolveHostnames, language: settings.appLanguage)
                         .onAppear { monitor.loadAppHistory(key) }
@@ -78,8 +78,8 @@ struct NetworkAppsPage: View {
             let flowKeys = Set(monitor.state.flows.map(\.appKey))
             base = monitor.state.apps.filter { $0.sessionTotal > 0 || flowKeys.contains($0.key) }
         } else {
-            // 24 小时：以持久化数据为准，包含已退出的应用；仍在运行的附带实时速率。
-            base = monitor.history.apps.map { d in detailApp(d.key) ?? placeholder(d) }
+            // 24 小时与日汇总范围：以持久化数据为准，包含已退出的应用；仍在运行的附带实时速率。
+            base = rangeTotals.map { d in detailApp(d.key) ?? placeholder(d) }
         }
         return base
             .filter { showSystem || $0.kind != .system }
@@ -87,7 +87,12 @@ struct NetworkAppsPage: View {
     }
 
     private func listTotal(_ app: AppTraffic) -> UInt64 {
-        range == .hour ? app.sessionTotal : (monitor.history.apps.first { $0.key == app.key }?.total ?? 0)
+        range == .hour ? app.sessionTotal : (rangeTotals.first { $0.key == app.key }?.total ?? 0)
+    }
+
+    private var rangeTotals: [AppDayTotal] {
+        guard let r = range.totalsRange else { return monitor.history.apps }
+        return monitor.history.appRanges[r] ?? []
     }
 
     private func detailApp(_ key: String) -> AppTraffic? {
@@ -103,7 +108,7 @@ private struct AppDetail: View {
     var app: AppTraffic
     var day: AppDayTotal?
     var daySeries: [TrafficPoint]?
-    var range: HistoryRange
+    var range: AppsRange
     var flows: [FlowInfo]
     var hostnames: [String: String]
     var resolve: Bool
@@ -134,9 +139,14 @@ private struct AppDetail: View {
                     if range == .hour {
                         KPI(title: L10n.text("本次下载"), value: Fmt.compactBytes(Double(app.sessionIn)), size: 16)
                         KPI(title: L10n.text("本次上传"), value: Fmt.compactBytes(Double(app.sessionOut)), size: 16)
-                    } else {
+                    } else if range == .day {
                         KPI(title: L10n.text("24 小时下载"), value: Fmt.compactBytes(Double(day?.bytesIn ?? 0)), size: 16)
                         KPI(title: L10n.text("24 小时上传"), value: Fmt.compactBytes(Double(day?.bytesOut ?? 0)), size: 16)
+                    } else {
+                        KPI(title: L10n.text("traffic.download", defaultValue: "下载"), value: Fmt.compactBytes(Double(day?.bytesIn ?? 0)),
+                            sub: range.title, size: 16)
+                        KPI(title: L10n.text("traffic.upload", defaultValue: "上传"), value: Fmt.compactBytes(Double(day?.bytesOut ?? 0)),
+                            sub: range.title, size: 16)
                     }
                     KPI(title: L10n.text("活跃连接"), value: "\(flows.filter(\.isEstablished).count)",
                         sub: String(format: L10n.text("监听 %lld"), Int64(flows.filter(\.isListening).count)), size: 16)
@@ -145,7 +155,7 @@ private struct AppDetail: View {
                     if range == .hour {
                         CardHeader(symbol: "chart.bar", title: L10n.text("最近 60 分钟流量"), tint: Palette.cpu)
                         MinuteChart(points: app.minutes, language: language).frame(height: 130)
-                    } else {
+                    } else if range == .day {
                         CardHeader(symbol: "chart.bar", title: L10n.text("最近 24 小时流量（每 10 分钟）"), tint: Palette.cpu)
                         DayChart(points: daySeries ?? [], language: language).frame(height: 130)
                     }
