@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import UserNotifications
 
 final class DiskIOService: @unchecked Sendable {
     static let backgroundInterval = 10
@@ -17,6 +18,7 @@ final class DiskIOService: @unchecked Sendable {
     private var store: HistoryStore?
     private var accumulator = DiskAccumulator()
     private var windowVisible = false
+    private var hourGB = 2, dayGB = 10
     private var pidBuffer = [pid_t](repeating: 0, count: 2048)
     /// 路径与名称按 (PID, 启动时间) 缓存，免得每轮重复取路径。
     /// shortcut: 进程 exec 会改路径但 PID 与启动时间不变，缓存可能短暂沿用旧路径；若实测影响排行，改为每轮重取路径或按 TTL 失效。
@@ -44,6 +46,11 @@ final class DiskIOService: @unchecked Sendable {
             windowVisible = visible
             if timer != nil { schedule() }
         }
+    }
+
+    /// 写入提醒阈值（GB），0 关闭该档。
+    func setThresholds(hourGB: Int, dayGB: Int) {
+        queue.async { [self] in self.hourGB = hourGB; self.dayGB = dayGB }
     }
 
     /// 清除历史：磁盘表已由 HistoryStore.clearAll 清空，这里只丢弃内存里待写的增量。
@@ -75,7 +82,19 @@ final class DiskIOService: @unchecked Sendable {
     private func flush() {
         guard let store, !accumulator.isEmpty else { return }
         let batch = accumulator.drain()
-        if !store.addDisk(batch, at: Date()) { accumulator.restore(batch) }
+        guard store.addDisk(batch, at: Date()) else { accumulator.restore(batch); return }
+        let gb = UInt64(1) << 30
+        for a in store.checkWriteAlerts(hourBytes: UInt64(max(hourGB, 0)) * gb, dayBytes: UInt64(max(dayGB, 0)) * gb, now: Date()) {
+            notify(a)
+        }
+    }
+
+    private func notify(_ a: WriteAlertRecord) {
+        let content = UNMutableNotificationContent()
+        content.title = "Zest · \(L10n.text("写入提醒"))"
+        content.body = String(format: L10n.text(a.tier == .hour ? "%1$@ 本小时已写入 %2$@" : "%1$@ 今日已写入 %2$@"),
+                              a.name, Fmt.bytes(Double(a.bytesWritten)))
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
     }
 
     private func snapshots() -> [DiskProcessSnapshot] {

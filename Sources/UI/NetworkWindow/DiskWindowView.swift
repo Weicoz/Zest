@@ -2,7 +2,7 @@
 //  DiskWindowView.swift
 //  Zest
 //
-//  “磁盘”窗口：写入排行、写入提醒、健康三个页签。后两页本票为占位。
+//  “磁盘”窗口：写入排行、写入提醒、健康三个页签。健康页本票为占位。
 //  窗口进程只读库（migrate: false），范围或排序变化时立即刷新，其余每 2 秒刷新。
 //
 
@@ -77,7 +77,7 @@ struct DiskWindowView: View {
             .frame(maxWidth: 360)
             switch page {
             case .ranking: DiskRankingPage()
-            case .alerts: DiskPlaceholder(symbol: "bell.badge")
+            case .alerts: DiskAlertsPage()
             case .health: DiskPlaceholder(symbol: "heart.text.square")
             }
         }

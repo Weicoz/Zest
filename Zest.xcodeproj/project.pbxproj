@@ -8,11 +8,14 @@
 
 /* Begin PBXBuildFile section */
 		E1E1E1E1E1E1E1E11550000 /* DiskLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */; };
+		E1E1E1E1E1E1E1E11580000 /* WriteAlertTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */; };
 		E1E1E1E1E1E1E1E11540000 /* DiskWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01540000 /* DiskWindowView.swift */; };
 		E1E1E1E1E1E1E1E11530000 /* DiskWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01530000 /* DiskWindowController.swift */; };
+		E1E1E1E1E1E1E1E11570000 /* DiskAlertsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01570000 /* DiskAlertsPage.swift */; };
 		E1E1E1E1E1E1E1E11520000 /* DiskIOService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01520000 /* DiskIOService.swift */; };
 		E1E1E1E1E1E1E1E11510000 /* HistoryStore+Disk.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01510000 /* HistoryStore+Disk.swift */; };
 		E1E1E1E1E1E1E1E11500000 /* DiskLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01500000 /* DiskLedger.swift */; };
+		E1E1E1E1E1E1E1E11560000 /* HistoryStore+WriteAlerts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01560000 /* HistoryStore+WriteAlerts.swift */; };
 		A3C5D7E9F1B20468AC13E5F7 /* AppsRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */; };
 		20838B9228EE43181FF95B6C /* BettboxLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C198107A6212BA0052165423 /* BettboxLedgerTests.swift */; };
 		3F56D483B15BB31463B7D7DE /* NetworkLiveLinksPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */; };
@@ -110,11 +113,14 @@
 
 /* Begin PBXFileReference section */
 		E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskLedgerTests.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WriteAlertTests.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01540000 /* DiskWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskWindowView.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01530000 /* DiskWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskWindowController.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01570000 /* DiskAlertsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskAlertsPage.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01520000 /* DiskIOService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskIOService.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01510000 /* HistoryStore+Disk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HistoryStore+Disk.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01500000 /* DiskLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskLedger.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01560000 /* HistoryStore+WriteAlerts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HistoryStore+WriteAlerts.swift"; sourceTree = "<group>"; };
 		B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsRange.swift; sourceTree = "<group>"; };
 		C198107A6212BA0052165423 /* BettboxLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BettboxLedgerTests.swift; sourceTree = "<group>"; };
 		F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLiveLinksPage.swift; sourceTree = "<group>"; };
@@ -224,6 +230,7 @@
 				AB2574F221F87BEB9985F5A7 /* HistoryGeoTests.swift */,
 				286F663AA65E6879269A61B9 /* DailyTotalsTests.swift */,
 				E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */,
+				E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */,
 				8C0D5B87A1EC7F00BD740129 /* LinkHistoryTests.swift */,
 				A0A0A0A0A0A0A0A0A0000007 /* LinkCSVTests.swift */,
 				FA446F269B32FED98C996135 /* LocalizationTests.swift */,
@@ -268,6 +275,7 @@
 				2BDCA744D600381A855D0DF3 /* DailyTotalsCards.swift */,
 				E0E0E0E0E0E0E0E01540000 /* DiskWindowView.swift */,
 				E0E0E0E0E0E0E0E01530000 /* DiskWindowController.swift */,
+				E0E0E0E0E0E0E0E01570000 /* DiskAlertsPage.swift */,
 				B2E8E06D987C92695F873E8A /* LinkHistoryModel.swift */,
 				A0A0A0A0A0A0A0A0A0000005 /* LinkExport.swift */,
 				B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */,
@@ -302,6 +310,7 @@
 				417A3EF46497DC1982500D0B /* LinkRecorder.swift */,
 				E0E0E0E0E0E0E0E01510000 /* HistoryStore+Disk.swift */,
 				E0E0E0E0E0E0E0E01500000 /* DiskLedger.swift */,
+				E0E0E0E0E0E0E0E01560000 /* HistoryStore+WriteAlerts.swift */,
 				669BBBF4C9E61D7B898D356C /* HistoryStore+Links.swift */,
 				F11DE2460ACDE3D91B8938E7 /* LinkHistory.swift */,
 				A0A0A0A0A0A0A0A0A0000003 /* LinkCSV.swift */,
@@ -514,6 +523,7 @@
 				08FE8FCE92C3A047C065891B /* HistoryGeoTests.swift in Sources */,
 				B92CB18C2F3969219E6272CC /* DailyTotalsTests.swift in Sources */,
 				E1E1E1E1E1E1E1E11550000 /* DiskLedgerTests.swift in Sources */,
+				E1E1E1E1E1E1E1E11580000 /* WriteAlertTests.swift in Sources */,
 				C81BFA44467EA2E557EA393B /* LinkHistoryTests.swift in Sources */,
 				A0A0A0A0A0A0A0A0A0000008 /* LinkCSVTests.swift in Sources */,
 				F6D667281D7AA79FF1CD6A94 /* LocalizationTests.swift in Sources */,
@@ -563,6 +573,7 @@
 				F8EDE6359891122062C8C0FC /* DailyTotalsCards.swift in Sources */,
 				E1E1E1E1E1E1E1E11540000 /* DiskWindowView.swift in Sources */,
 				E1E1E1E1E1E1E1E11530000 /* DiskWindowController.swift in Sources */,
+				E1E1E1E1E1E1E1E11570000 /* DiskAlertsPage.swift in Sources */,
 				B2EF769E8FC000207D6D6B00 /* LinkHistoryModel.swift in Sources */,
 				A0A0A0A0A0A0A0A0A0000006 /* LinkExport.swift in Sources */,
 				A3C5D7E9F1B20468AC13E5F7 /* AppsRange.swift in Sources */,
@@ -574,6 +585,7 @@
 				B08060C4C29C063E871D64C4 /* LinkRecorder.swift in Sources */,
 				E1E1E1E1E1E1E1E11510000 /* HistoryStore+Disk.swift in Sources */,
 				E1E1E1E1E1E1E1E11500000 /* DiskLedger.swift in Sources */,
+				E1E1E1E1E1E1E1E11560000 /* HistoryStore+WriteAlerts.swift in Sources */,
 				8D611FAC662287625A1F0724 /* HistoryStore+Links.swift in Sources */,
 				D5D2BE52A65AED8172829AD8 /* LinkHistory.swift in Sources */,
 				A0A0A0A0A0A0A0A0A0000004 /* LinkCSV.swift in Sources */,

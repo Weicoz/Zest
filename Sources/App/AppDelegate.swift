@@ -97,6 +97,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         engine.start(interval: settings.refreshInterval)
         network.start()
         diskService.start()
+        settings.$writeAlertHourGB.combineLatest(settings.$writeAlertDayGB).sink { [diskService] h, d in
+            diskService.setThresholds(hourGB: h, dayGB: d)
+        }.store(in: &cancellables)
         network.onHistoryCleared = { [diskService] in diskService.clear() }
         settings.$networkMonitoring.dropFirst().removeDuplicates().sink { [weak self] on in
             on ? self?.network.start() : self?.network.stop()

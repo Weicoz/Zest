@@ -26,15 +26,16 @@ extension HistoryStore {
                 day INTEGER NOT NULL, path TEXT NOT NULL, name TEXT NOT NULL,
                 bytes_read INTEGER NOT NULL, bytes_written INTEGER NOT NULL,
                 PRIMARY KEY(day, path)) WITHOUT ROWID;
-            """)
+            """) && createWriteAlertTable()
     }
 
     func clearDisk() {
         guard exec("BEGIN") else { return }
-        if !exec("DELETE FROM disk_minutes; DELETE FROM disk_hours; DELETE FROM disk_days") || !exec("COMMIT") { exec("ROLLBACK") }
+        if !exec("DELETE FROM disk_minutes; DELETE FROM disk_hours; DELETE FROM disk_days; DELETE FROM write_alerts") || !exec("COMMIT") { exec("ROLLBACK") }
     }
 
     func pruneDisk(nowMinute: Int, now: Date, calendar: Calendar) {
+        pruneWriteAlerts(now: now)
         if let s = prepare("DELETE FROM disk_minutes WHERE minute < ?") {
             sqlite3_bind_int64(s, 1, Int64(nowMinute - HistoryStore.retentionMinutes)); sqlite3_step(s); sqlite3_finalize(s)
         }

@@ -75,6 +75,9 @@ final class AppSettings: ObservableObject {
     @Published var networkMonitoring: Bool { didSet { defaults.set(networkMonitoring, forKey: Keys.networkMonitoring) } }
     @Published var resolveHostnames: Bool { didSet { defaults.set(resolveHostnames, forKey: Keys.resolveHostnames) } }
     @Published var alertNotifications: Bool { didSet { defaults.set(alertNotifications, forKey: Keys.alertNotifications) } }
+    /// 写入提醒阈值（GB），0 关闭该档。
+    @Published var writeAlertHourGB: Int { didSet { defaults.set(writeAlertHourGB, forKey: Keys.writeAlertHourGB) } }
+    @Published var writeAlertDayGB: Int { didSet { defaults.set(writeAlertDayGB, forKey: Keys.writeAlertDayGB) } }
     @Published var suppressions: [SuppressionRule] {
         didSet { if let d = try? JSONEncoder().encode(suppressions) { defaults.set(d, forKey: Keys.suppressions) } }
     }
@@ -88,6 +91,8 @@ final class AppSettings: ObservableObject {
         static let alertNotifications = "alertNotifications"
         static let suppressions = "alertSuppressions"
         static let appLanguage = "appLanguage"
+        static let writeAlertHourGB = "writeAlertHourGB"
+        static let writeAlertDayGB = "writeAlertDayGB"
         static let tools = "quickToolEntries"
         static let awakeMinutes = "toolsAwakeMinutes"
         static let cleaningSeconds = "toolsCleaningSeconds"
@@ -118,6 +123,8 @@ final class AppSettings: ObservableObject {
         networkMonitoring = defaults.object(forKey: Keys.networkMonitoring) as? Bool ?? true
         resolveHostnames = defaults.bool(forKey: Keys.resolveHostnames)
         alertNotifications = defaults.bool(forKey: Keys.alertNotifications)
+        writeAlertHourGB = max(defaults.object(forKey: Keys.writeAlertHourGB) as? Int ?? 2, 0)
+        writeAlertDayGB = max(defaults.object(forKey: Keys.writeAlertDayGB) as? Int ?? 10, 0)
         suppressions = defaults.data(forKey: Keys.suppressions)
             .flatMap { try? JSONDecoder().decode([SuppressionRule].self, from: $0) } ?? []
         appLanguage = AppLanguage.stored(defaults.string(forKey: Keys.appLanguage))

@@ -141,6 +141,16 @@ private struct NetworkSettings: View {
                 Text(L10n.text("仅对“警告”级别（可疑端口、上传突增、周期性外连、端口扫描）发送通知。"))
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section {
+                Stepper(value: $settings.writeAlertHourGB, in: 0...100_000) {
+                    Text("\(L10n.text("每小时写入提醒阈值（GB）")): \(settings.writeAlertHourGB)")
+                }
+                Stepper(value: $settings.writeAlertDayGB, in: 0...100_000) {
+                    Text("\(L10n.text("每天写入提醒阈值（GB）")): \(settings.writeAlertDayGB)")
+                }
+                Text(L10n.text("某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。"))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let network {
                 HistorySection(network: network, settings: settings)
             }
