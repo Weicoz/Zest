@@ -49,6 +49,23 @@ final class DiskHealthTests: XCTestCase {
         XCTAssertEqual(DiskHealthParser.parse(plist(smart: "Not Supported")), .unsupported)
     }
 
+    func testNegativeOrHugeValuesDoNotCrash() {
+        let bad = """
+            <key>SMARTDeviceSpecificKeysMayVaryNotGuaranteed</key><dict>
+            <key>PERCENTAGE_USED</key><integer>-5</integer>
+            <key>DATA_UNITS_WRITTEN_0</key><integer>-1</integer>
+            <key>TEMPERATURE</key><integer>-1</integer></dict>
+            """
+        guard case .health(let h) = DiskHealthParser.parse(plist(nvme: bad)) else { return XCTFail("应为健康信息") }
+        XCTAssertNil(h.percentUsed)
+        XCTAssertNil(h.bytesWritten)
+        XCTAssertNil(h.temperatureC)
+        let huge = bad.replacingOccurrences(of: "<integer>-1</integer></dict>", with: "<integer>9223372036854775807</integer></dict>")
+            .replacingOccurrences(of: "<key>DATA_UNITS_WRITTEN_0</key><integer>-1</integer>", with: "<key>DATA_UNITS_WRITTEN_0</key><integer>9223372036854775807</integer>")
+        guard case .health(let g) = DiskHealthParser.parse(plist(nvme: huge)) else { return XCTFail("应为健康信息") }
+        XCTAssertNil(g.bytesWritten)
+    }
+
     func testGarbageFails() {
         guard case .failed = DiskHealthParser.parse(Data("x".utf8)) else { return XCTFail("应为失败") }
     }

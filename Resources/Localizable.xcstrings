@@ -3818,13 +3818,13 @@
       }
     },
     "正常" : {
-      "comment" : "磁盘健康页",
+      "comment" : "状态正常。内存压力与散热状态共用。",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verified"
+            "value" : "Normal"
           }
         },
         "zh-Hans" : {
@@ -7963,7 +7963,25 @@
         }
       }
     },
-    "异常" : {
+    "SMART 正常" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verified"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMART 正常"
+          }
+        }
+      }
+    },
+    "SMART 异常" : {
       "comment" : "磁盘健康页",
       "extractionState" : "manual",
       "localizations" : {
@@ -7976,7 +7994,79 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "异常"
+            "value" : "SMART 异常"
+          }
+        }
+      }
+    },
+    "无法解析 diskutil 输出" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cannot parse diskutil output"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法解析 diskutil 输出"
+          }
+        }
+      }
+    },
+    "diskutil 读取超时" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "diskutil timed out"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "diskutil 读取超时"
+          }
+        }
+      }
+    },
+    "diskutil 执行失败" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "diskutil failed to run"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "diskutil 执行失败"
+          }
+        }
+      }
+    },
+    "刷新失败，显示上次读数" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh failed. Showing the last reading."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刷新失败，显示上次读数"
           }
         }
       }

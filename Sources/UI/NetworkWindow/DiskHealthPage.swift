@@ -10,6 +10,8 @@ import SwiftUI
 @MainActor
 final class DiskHealthModel: ObservableObject {
     @Published private(set) var result: DiskHealthResult?
+    /// 已有成功读数后刷新失败：保留旧读数并提示。
+    @Published private(set) var refreshFailed = false
     private let queue = DispatchQueue(label: "app.zest.diskhealth", qos: .utility)
     private var task: Task<Void, Never>?
 
@@ -31,7 +33,12 @@ final class DiskHealthModel: ObservableObject {
     private func reload() {
         queue.async { [weak self] in
             let r = DiskHealthReader.read()
-            DispatchQueue.main.async { self?.result = r }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if case .failed = r, case .health = self.result { self.refreshFailed = true; return }
+                self.result = r
+                self.refreshFailed = false
+            }
         }
     }
 }
@@ -64,6 +71,9 @@ struct DiskHealthPage: View {
                     row(L10n.text("寿命已用"), h.percentUsed.map { "\($0)%" })
                     row(L10n.text("累计写入"), h.bytesWritten.map { Fmt.bytes(Double($0)) })
                     row(L10n.text("温度"), h.temperatureC.map { String(format: "%.0f °C", $0) })
+                    if model.refreshFailed {
+                        Text(L10n.text("刷新失败，显示上次读数")).font(.system(size: 11)).foregroundStyle(.orange)
+                    }
                     Spacer()
                 }
                 .font(.system(size: 13))
@@ -77,8 +87,8 @@ struct DiskHealthPage: View {
 
     private func statusText(_ s: DiskHealth.Status) -> String {
         switch s {
-        case .verified: return L10n.text("正常")
-        case .failing: return L10n.text("异常")
+        case .verified: return L10n.text("SMART 正常")
+        case .failing: return L10n.text("SMART 异常")
         case .other(let v): return v
         }
     }
