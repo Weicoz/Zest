@@ -89,4 +89,63 @@ final class BettboxLedgerTests: XCTestCase {
         XCTAssertEqual(l.byRule["Match"]?.down, 10)
         XCTAssertEqual(l.links.first { $0.id == "g" }?.chain, ["group-top", "group-a", "node-a"])
     }
+
+    func testResumeAfterOutageStartsNewBaseline() throws {
+        var l = TrafficLedger()
+        l.ingest(try payload(down: 0, up: 0, [conn("a", down: 0, up: 0)]), at: at(0))
+        l.ingest(try payload(down: 100, up: 10, [conn("a", down: 100, up: 10)]), at: at(2))
+        l.interrupt()   // Bettbox 不可用
+        XCTAssertTrue(l.links.isEmpty)
+        XCTAssertEqual(l.byApp["app1"], LedgerTraffic(down: 100, up: 10))   // 累计保留
+        // 停机期间 a 与总量都涨了；恢复后的第一份只作基线。
+        l.ingest(try payload(down: 5_000, up: 500, [conn("a", down: 4_000, up: 400)]), at: at(60))
+        XCTAssertEqual(l.byApp["app1"], LedgerTraffic(down: 100, up: 10))
+        XCTAssertEqual(l.unattributed, LedgerTraffic())
+        XCTAssertEqual(l.links.first?.downRate, 0)
+        l.ingest(try payload(down: 5_050, up: 505, [conn("a", down: 4_050, up: 405)]), at: at(62))
+        XCTAssertEqual(l.byApp["app1"], LedgerTraffic(down: 150, up: 15))
+    }
+}
+
+final class BettboxConfigTests: XCTestCase {
+    private func client(_ cfg: String) throws -> BettboxClient { try BettboxClient.make(config: cfg).get() }
+    private func url(_ cfg: String) throws -> String? { try client(cfg).request().url?.absoluteString }
+    private func auth(_ cfg: String) throws -> String? { try client(cfg).request().value(forHTTPHeaderField: "Authorization") }
+    private func failure(_ cfg: String) -> BettboxConfigError? {
+        if case .failure(let e) = BettboxClient.make(config: cfg) { return e }
+        return nil
+    }
+
+    func testWildcardHostsUseLoopback() throws {
+        XCTAssertEqual(try url("external-controller: 0.0.0.0:9090\n"), "http://127.0.0.1:9090/connections")
+        XCTAssertEqual(try url("external-controller: ':9091'\n"), "http://127.0.0.1:9091/connections")
+        XCTAssertEqual(try url("external-controller: \"[::]:9092\"\n"), "http://127.0.0.1:9092/connections")
+        XCTAssertEqual(try url("external-controller: localhost:9093\n"), "http://localhost:9093/connections")
+        XCTAssertEqual(try url("external-controller: 127.0.0.5:9094\n"), "http://127.0.0.5:9094/connections")
+        XCTAssertEqual(try url("external-controller: '[::1]:9095'\n"), "http://[::1]:9095/connections")
+    }
+
+    func testQuotedAndCommentedValues() throws {
+        let q = "external-controller: '127.0.0.1:9090' # c\nsecret: \"ab # cd\" # note\n"
+        XCTAssertEqual(try auth(q), "Bearer ab # cd")
+        XCTAssertEqual(try auth("external-controller: 127.0.0.1:9090 # c\nsecret: abc # note\n"), "Bearer abc")
+        XCTAssertEqual(try url("external-controller: 127.0.0.1:9090 # c\n"), "http://127.0.0.1:9090/connections")
+        XCTAssertNil(try auth("external-controller: 127.0.0.1:9090\nsecret: ''\n"))
+        XCTAssertNil(try auth("external-controller: 127.0.0.1:9090\n"))
+    }
+
+    func testMissingControllerOrBadPort() {
+        XCTAssertEqual(failure("secret: x\n"), .missing)
+        XCTAssertEqual(failure("external-controller: 127.0.0.1:0\n"), .missing)
+        XCTAssertEqual(failure("external-controller: 127.0.0.1:65536\n"), .missing)
+        XCTAssertEqual(failure("external-controller: 127.0.0.1:abc\n"), .missing)
+        XCTAssertEqual(failure("external-controller: 127.0.0.1\n"), .missing)
+    }
+
+    func testNonLoopbackIsRefused() {
+        XCTAssertEqual(failure("external-controller: 192.0.2.7:9090\nsecret: x\n"), .nonLocal)
+        XCTAssertEqual(failure("external-controller: ctl.example.test:9090\n"), .nonLocal)
+        XCTAssertEqual(failure("external-controller: 128.0.0.1:9090\n"), .nonLocal)
+        XCTAssertEqual(failure("external-controller: 127.0.0.1.example.test:9090\n"), .nonLocal)
+    }
 }

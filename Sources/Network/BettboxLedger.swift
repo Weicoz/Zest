@@ -118,6 +118,15 @@ struct TrafficLedger {
         return cur >= prev ? cur - prev : cur
     }
 
+    /// Bettbox 不可用（未运行、认证失败等）：清空当前链路与速率，累计保留；
+    /// 下一份成功快照只作新基线，停机期间的增量不计入累计与未归属。
+    mutating func interrupt() {
+        seen = [:]
+        lastTotals = nil
+        lastAt = nil
+        links = []
+    }
+
     mutating func ingest(_ payload: BettboxPayload, at: Date) {
         let baseline = lastTotals == nil
         let dt = lastAt.map { at.timeIntervalSince($0) } ?? 0

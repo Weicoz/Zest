@@ -7160,6 +7160,24 @@
           }
         }
       }
+    },
+    "Bettbox 控制器不是本机地址，为保护 secret 不连接" : {
+      "comment" : "链路页状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Bettbox controller is not a local address; not connecting, to protect the secret"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bettbox 控制器不是本机地址，为保护 secret 不连接"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

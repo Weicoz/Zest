@@ -9,21 +9,24 @@
 import Foundation
 
 enum LiveLinksStatus: Equatable {
-    case starting, available, notRunning, configMissing, authFailed, decodeFailed
+    case starting, available, notRunning, configMissing, nonLocalController, authFailed, decodeFailed
 }
 
 @MainActor
 final class LiveLinksService: ObservableObject {
     @Published private(set) var status = LiveLinksStatus.starting
     @Published private(set) var ledger = TrafficLedger()
-    let startedAt = Date()
     private var task: Task<Void, Never>?
+    /// stop() 后旧 tick 可能仍在 await；代次不符的结果一律丢弃。
+    private var generation = 0
 
     func start() {
         guard task == nil else { return }
+        generation += 1
+        let gen = generation
         task = Task { [weak self] in
             while !Task.isCancelled {
-                await self?.tick()
+                await self?.tick(gen)
                 try? await Task.sleep(nanoseconds: UInt64(NetworkMonitor.foregroundInterval) * 1_000_000_000)
             }
         }
@@ -32,19 +35,35 @@ final class LiveLinksService: ObservableObject {
     func stop() {
         task?.cancel()
         task = nil
+        generation += 1
     }
 
-    private func tick() async {
-        guard let client = BettboxClient.load() else { status = .configMissing; return }
+    private func tick(_ gen: Int) async {
+        let client: BettboxClient
+        switch BettboxClient.load() {
+        case .success(let c): client = c
+        case .failure(.missing): return fail(.configMissing, gen)
+        case .failure(.nonLocal): return fail(.nonLocalController, gen)
+        }
         let result = await client.fetch()
+        guard gen == generation else { return }
         switch result {
         case .available(let payload):
             ledger.ingest(payload, at: Date())
             status = .available
-        case .notRunning: status = .notRunning
-        case .configMissing: status = .configMissing
-        case .authFailed: status = .authFailed
-        case .decodeFailed: status = .decodeFailed
+        case .cancelled: break
+        case .notRunning: fail(.notRunning, gen)
+        case .configMissing: fail(.configMissing, gen)
+        case .nonLocalController: fail(.nonLocalController, gen)
+        case .authFailed: fail(.authFailed, gen)
+        case .decodeFailed: fail(.decodeFailed, gen)
         }
+    }
+
+    /// 不可用时清空当前链路与速率，累计保留；恢复后的第一份快照只作基线。
+    private func fail(_ s: LiveLinksStatus, _ gen: Int) {
+        guard gen == generation else { return }
+        ledger.interrupt()
+        status = s
     }
 }
