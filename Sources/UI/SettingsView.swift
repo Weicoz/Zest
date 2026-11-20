@@ -165,7 +165,7 @@ private struct HistorySection: View {
             }
             Text(L10n.text("每分钟保存各应用的收发字节与告警到本机（~/Library/Application Support），24 小时前的数据自动删除，不会上传。"))
                 .font(.caption).foregroundStyle(.secondary)
-            Button(confirming ? L10n.text("确认清除全部历史？") : L10n.text("清除网络历史"), role: .destructive) {
+            Button(confirming ? L10n.text("确认清除分钟明细、告警与每日汇总？") : L10n.text("清除网络历史"), role: .destructive) {
                 if confirming { network.clearHistory(); confirming = false } else { confirming = true }
             }
         }

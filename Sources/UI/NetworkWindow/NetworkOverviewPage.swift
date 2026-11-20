@@ -55,6 +55,7 @@ struct NetworkOverviewPage: View {
                     KPI(title: L10n.text("联网应用"), value: "\(s.onlineApps.count)")
                     KPI(title: L10n.text("隐私评分"), value: "\(monitor.score.score)", tint: ScoreRing.color(monitor.score.score))
                 }
+                DailyTotalsCards(totals: h.totals)
                 HStack(alignment: .top, spacing: 12) {
                     Card {
                         CardHeader(symbol: "waveform.path.ecg", title: L10n.text("实时（最近 5 分钟）"), tint: Palette.download)

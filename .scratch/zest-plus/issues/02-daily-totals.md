@@ -17,3 +17,12 @@
 - [ ] `VERIFY_TIER=full BASE=main Tools/verify.sh` 末行 `结论：通过`
 - [ ] 新增界面文字含 `zh-Hans` 与 `en`，`Tools/check_quick_tools.py` 通过
 - [ ] 启动 `build/Zest.app` 截图验收，写明未看画面
+
+## 偏差
+
+- 「本月」范围取月初到今天（不含未来日），结果与到月末相同，便于测试断言。
+- 整机总量增量在内存累加，每分钟随 `addMinute` 同一事务写入；崩溃最多丢未满一分钟的增量。重启后首次采样只作基线，停机期间的流量不计。
+- 增量归属 tracker 完成的分钟；该分钟若无应用流量（tracker 不回调），增量并入下一次回调，跨日边界误差不超过一个采样间隔。
+- 「清除历史」确认按钮文案改为「确认清除分钟明细、告警与每日汇总？」，设置页说明文字未改（未列入范围）。
+- `Tools/check_quick_tools.py` 只加入 `DailyTotalsCards.swift`；`SettingsView.swift` 未加入扫描。
+- 未做：启动 `build/Zest.app` 截图、全检（主会话执行）。

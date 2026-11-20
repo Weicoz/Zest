@@ -7178,6 +7178,114 @@
           }
         }
       }
+    },
+    "今日" : {
+      "comment" : "整机总量卡片：今日",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日"
+          }
+        }
+      }
+    },
+    "昨日" : {
+      "comment" : "整机总量卡片：昨日",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yesterday"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨日"
+          }
+        }
+      }
+    },
+    "7 天" : {
+      "comment" : "整机总量卡片：含今天的最近 7 个自然日",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 7 days"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7 天"
+          }
+        }
+      }
+    },
+    "本月" : {
+      "comment" : "整机总量卡片：本月自然月",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This month"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月"
+          }
+        }
+      }
+    },
+    "整机总量（物理网卡，含局域网与协议开销；永久保留）" : {
+      "comment" : "总览页整机总量卡片区标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whole-machine totals (physical interfaces, incl. LAN and protocol overhead; kept permanently)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "整机总量（物理网卡，含局域网与协议开销；永久保留）"
+          }
+        }
+      }
+    },
+    "确认清除分钟明细、告警与每日汇总？" : {
+      "comment" : "清除网络历史按钮的二次确认文案，写明清除范围",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear minute details, alerts and daily totals?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确认清除分钟明细、告警与每日汇总？"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

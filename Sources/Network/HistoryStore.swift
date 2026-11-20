@@ -62,6 +62,8 @@ final class HistoryStore {
                 id TEXT PRIMARY KEY, ts REAL NOT NULL, kind TEXT NOT NULL, app_key TEXT, app_name TEXT,
                 detail TEXT NOT NULL, dedup TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS alerts_ts ON alerts(ts);
+            CREATE TABLE IF NOT EXISTS daily_physical(
+                day INTEGER PRIMARY KEY, bytes_in INTEGER NOT NULL, bytes_out INTEGER NOT NULL);
             """)
         if !ok { return nil }
     }
@@ -89,8 +91,11 @@ final class HistoryStore {
     // MARK: 写入
 
     /// 写入（累加）一分钟内各应用的流量。同一分钟重复写入时累加，适合退出前写入未满一分钟的数据。
-    func addMinute(_ minute: Int, traffic: [String: TrafficPoint], meta: [String: AppMeta]) {
-        guard !traffic.isEmpty else { return }
+    /// physical：同一时段的整机总量增量，在同一事务内累加到该分钟所在本地日的日汇总（永不被 prune 清理）。
+    func addMinute(_ minute: Int, traffic: [String: TrafficPoint], meta: [String: AppMeta],
+                   physical: InterfaceCounters? = nil, calendar: Calendar = .current) {
+        let hasPhysical = physical.map { $0.bytesIn > 0 || $0.bytesOut > 0 } ?? false
+        guard !traffic.isEmpty || hasPhysical else { return }
         exec("BEGIN")
         if let ins = prepare("""
             INSERT INTO traffic(minute, app_key, bytes_in, bytes_out) VALUES(?,?,?,?)
@@ -113,6 +118,17 @@ final class HistoryStore {
             }
             sqlite3_finalize(ins)
             sqlite3_finalize(app)
+        }
+        if let physical, hasPhysical, let daily = prepare("""
+            INSERT INTO daily_physical(day, bytes_in, bytes_out) VALUES(?,?,?)
+            ON CONFLICT(day) DO UPDATE SET bytes_in = bytes_in + excluded.bytes_in, bytes_out = bytes_out + excluded.bytes_out
+            """) {
+            let day = DayRange.key(of: Date(timeIntervalSince1970: Double(minute) * 60), calendar: calendar)
+            sqlite3_bind_int64(daily, 1, Int64(day))
+            sqlite3_bind_int64(daily, 2, Int64(clamping: physical.bytesIn))
+            sqlite3_bind_int64(daily, 3, Int64(clamping: physical.bytesOut))
+            sqlite3_step(daily)
+            sqlite3_finalize(daily)
         }
         exec("COMMIT")
     }
@@ -158,7 +174,7 @@ final class HistoryStore {
     }
 
     func clearAll() {
-        exec("DELETE FROM traffic; DELETE FROM apps; DELETE FROM alerts; VACUUM;")
+        exec("DELETE FROM traffic; DELETE FROM apps; DELETE FROM alerts; DELETE FROM daily_physical; VACUUM;")
     }
 
     // MARK: 查询
@@ -181,6 +197,19 @@ final class HistoryStore {
         }
         sqlite3_finalize(s)
         return result
+    }
+
+    /// 范围内的整机总量（日汇总）。
+    func physicalTotals(_ range: DayRange) -> InterfaceCounters {
+        let zero = InterfaceCounters(bytesIn: 0, bytesOut: 0)
+        guard let s = prepare("SELECT COALESCE(SUM(bytes_in),0), COALESCE(SUM(bytes_out),0) FROM daily_physical WHERE day >= ? AND day <= ?")
+        else { return zero }
+        defer { sqlite3_finalize(s) }
+        sqlite3_bind_int64(s, 1, Int64(range.from))
+        sqlite3_bind_int64(s, 2, Int64(range.to))
+        guard sqlite3_step(s) == SQLITE_ROW else { return zero }
+        return InterfaceCounters(bytesIn: UInt64(max(sqlite3_column_int64(s, 0), 0)),
+                                 bytesOut: UInt64(max(sqlite3_column_int64(s, 1), 0)))
     }
 
     func appTotals(sinceMinute: Int) -> [AppDayTotal] {

@@ -9,13 +9,16 @@
 /* Begin PBXBuildFile section */
 		20838B9228EE43181FF95B6C /* BettboxLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C198107A6212BA0052165423 /* BettboxLedgerTests.swift */; };
 		3F56D483B15BB31463B7D7DE /* NetworkLiveLinksPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */; };
+		F8EDE6359891122062C8C0FC /* DailyTotalsCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BDCA744D600381A855D0DF3 /* DailyTotalsCards.swift */; };
 		C3CD8F7E47D05BEACE4A8DFF /* LiveLinksService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F95550EAA13598AE121B4A /* LiveLinksService.swift */; };
+		76428640E2B8AD473C37712C /* DailyTotals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CF03889E892B41C9E1931BE /* DailyTotals.swift */; };
 		101D1516ACFF03B3AEC437FC /* BettboxClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333928F51D1A6AC511B4320A /* BettboxClient.swift */; };
 		9C8BB8A70819EB62E56707C6 /* BettboxLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EF83D47388D504F3859C27 /* BettboxLedger.swift */; };
 		05B89019CD7B7E00139EB63D /* NetworkSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DD441C6BDD0C1FE15550A02 /* NetworkSummaryView.swift */; };
 		06389363E0F1CC09E4BEC504 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54967A124672017F4832516B /* AppDelegate.swift */; };
 		083BBD0CCE92339E017D9850 /* MenuBarRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1346B653D82B0C4B350FC09B /* MenuBarRenderer.swift */; };
 		08FE8FCE92C3A047C065891B /* HistoryGeoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2574F221F87BEB9985F5A7 /* HistoryGeoTests.swift */; };
+		B92CB18C2F3969219E6272CC /* DailyTotalsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 286F663AA65E6879269A61B9 /* DailyTotalsTests.swift */; };
 		0B553D26BBE032FAE53B0F2C /* NetworkConnectionsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A5A39475ECBCCD6D164F81 /* NetworkConnectionsPage.swift */; };
 		0C40D083C4181D8135F5EF28 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7EEB49D91DFCC83F7DA4503D /* Assets.xcassets */; };
 		104DA9792306B3D6527E6188 /* NetworkTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D7797DA28B430A9EDDEFBD /* NetworkTracker.swift */; };
@@ -92,7 +95,9 @@
 /* Begin PBXFileReference section */
 		C198107A6212BA0052165423 /* BettboxLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BettboxLedgerTests.swift; sourceTree = "<group>"; };
 		F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLiveLinksPage.swift; sourceTree = "<group>"; };
+		2BDCA744D600381A855D0DF3 /* DailyTotalsCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotalsCards.swift; sourceTree = "<group>"; };
 		F3F95550EAA13598AE121B4A /* LiveLinksService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveLinksService.swift; sourceTree = "<group>"; };
+		8CF03889E892B41C9E1931BE /* DailyTotals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotals.swift; sourceTree = "<group>"; };
 		333928F51D1A6AC511B4320A /* BettboxClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BettboxClient.swift; sourceTree = "<group>"; };
 		27EF83D47388D504F3859C27 /* BettboxLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BettboxLedger.swift; sourceTree = "<group>"; };
 		060C1F7C09115A0E6A75CE6A /* ProcessesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessesView.swift; sourceTree = "<group>"; };
@@ -140,6 +145,7 @@
 		9944E4BB1E3C6A8AE6871404 /* PanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelView.swift; sourceTree = "<group>"; };
 		AA8AA3E4358C35D270B95FD4 /* MonitorStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorStore.swift; sourceTree = "<group>"; };
 		AB2574F221F87BEB9985F5A7 /* HistoryGeoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryGeoTests.swift; sourceTree = "<group>"; };
+		286F663AA65E6879269A61B9 /* DailyTotalsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotalsTests.swift; sourceTree = "<group>"; };
 		B40BD6A8A1AE95306483BD34 /* MemorySampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySampler.swift; sourceTree = "<group>"; };
 		B4385B5700D0CC695EB21A36 /* Zest-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Zest-Bridging-Header.h"; sourceTree = "<group>"; };
 		BB93A2C466B75284AC731B1B /* SystemInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemInfo.swift; sourceTree = "<group>"; };
@@ -184,6 +190,7 @@
 			children = (
 				0CC1F6BB6AA0880B5DB95285 /* CoreLogicTests.swift */,
 				AB2574F221F87BEB9985F5A7 /* HistoryGeoTests.swift */,
+				286F663AA65E6879269A61B9 /* DailyTotalsTests.swift */,
 				FA446F269B32FED98C996135 /* LocalizationTests.swift */,
 				48CD32A57877AC8B6952AB75 /* NativeProcessTableTests.swift */,
 				C198107A6212BA0052165423 /* BettboxLedgerTests.swift */,
@@ -223,6 +230,7 @@
 				80A5A39475ECBCCD6D164F81 /* NetworkConnectionsPage.swift */,
 				F831F2578FB3F07D53D3CACE /* NetworkOverviewPage.swift */,
 				F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */,
+				2BDCA744D600381A855D0DF3 /* DailyTotalsCards.swift */,
 				5A9920AB0B34A62EB3EB55CC /* NetworkTopologyPage.swift */,
 				72E3D82707E62D88E189E3F0 /* NetworkWindowController.swift */,
 				36F1D43B993AD7C9830BCB87 /* NetworkWindowView.swift */,
@@ -250,6 +258,7 @@
 				27EF83D47388D504F3859C27 /* BettboxLedger.swift */,
 				333928F51D1A6AC511B4320A /* BettboxClient.swift */,
 				F3F95550EAA13598AE121B4A /* LiveLinksService.swift */,
+				8CF03889E892B41C9E1931BE /* DailyTotals.swift */,
 				62D7797DA28B430A9EDDEFBD /* NetworkTracker.swift */,
 			);
 			path = Network;
@@ -455,6 +464,7 @@
 			files = (
 				29F787AE4A90D70D8585E59E /* CoreLogicTests.swift in Sources */,
 				08FE8FCE92C3A047C065891B /* HistoryGeoTests.swift in Sources */,
+				B92CB18C2F3969219E6272CC /* DailyTotalsTests.swift in Sources */,
 				F6D667281D7AA79FF1CD6A94 /* LocalizationTests.swift in Sources */,
 				2586AD3F949495D1F4D688B6 /* NativeProcessTableTests.swift in Sources */,
 				20838B9228EE43181FF95B6C /* BettboxLedgerTests.swift in Sources */,
@@ -498,10 +508,12 @@
 				F323E4239AED3C20BC2045CF /* NetworkSampler.swift in Sources */,
 				05B89019CD7B7E00139EB63D /* NetworkSummaryView.swift in Sources */,
 				3F56D483B15BB31463B7D7DE /* NetworkLiveLinksPage.swift in Sources */,
+				F8EDE6359891122062C8C0FC /* DailyTotalsCards.swift in Sources */,
 				EED370FA9D17D019EE45D688 /* NetworkTopologyPage.swift in Sources */,
 				9C8BB8A70819EB62E56707C6 /* BettboxLedger.swift in Sources */,
 				101D1516ACFF03B3AEC437FC /* BettboxClient.swift in Sources */,
 				C3CD8F7E47D05BEACE4A8DFF /* LiveLinksService.swift in Sources */,
+				76428640E2B8AD473C37712C /* DailyTotals.swift in Sources */,
 				104DA9792306B3D6527E6188 /* NetworkTracker.swift in Sources */,
 				61A2C633C6B7A1F0958E4098 /* NetworkTypes.swift in Sources */,
 				A3BCAA52B55F77470DEA489B /* NetworkWindowController.swift in Sources */,

@@ -30,6 +30,8 @@ struct HistorySummary: Equatable {
     var bytesIn: UInt64 = 0
     var bytesOut: UInt64 = 0
     var storeSize: Int64 = 0
+    /// 整机总量（日汇总）：今日、昨日、7 天、本月。
+    var totals: [TotalsRange: InterfaceCounters] = [:]
 }
 
 final class NetworkMonitor: ObservableObject {
@@ -56,6 +58,8 @@ final class NetworkMonitor: ObservableObject {
     private let queue = DispatchQueue(label: "app.zest.network", qos: .utility)
     private let tracker = NetworkTracker()
     private let performanceSampler = SelfUsageSampler()
+    private let physicalSampler = NetworkSampler()
+    private var physical = PhysicalAccumulator()
     private var store: HistoryStore?
     private var storeOpened = false
     private let detector = AnomalyDetector()
@@ -111,7 +115,7 @@ final class NetworkMonitor: ObservableObject {
             guard let self, let store = self.store else { return }
             // 历史只由主进程写入；查看器只读，避免重复计入。
             guard self.role == .primary else { return }
-            store.addMinute(minute, traffic: traffic, meta: meta)
+            store.addMinute(minute, traffic: traffic, meta: meta, physical: self.physical.drain())
             store.prune(nowMinute: minute + 1)
             self.refreshHistory()
         }
@@ -128,9 +132,11 @@ final class NetworkMonitor: ObservableObject {
         let start = (now - HistoryStore.retentionMinutes) / bucket * bucket
         let day = store.totals(sinceMinute: start, untilMinute: now, bucket: bucket)
         let apps = store.appTotals(sinceMinute: now - HistoryStore.retentionMinutes)
+        var totals: [TotalsRange: InterfaceCounters] = [:]
+        for r in TotalsRange.allCases { totals[r] = store.physicalTotals(r.dayRange(now: Date(), calendar: .current)) }
         let summary = HistorySummary(day: day, dayStartMinute: start, apps: apps,
                                      bytesIn: apps.reduce(0) { $0 &+ $1.bytesIn }, bytesOut: apps.reduce(0) { $0 &+ $1.bytesOut },
-                                     storeSize: store.fileSize)
+                                     storeSize: store.fileSize, totals: totals)
         DispatchQueue.main.async { self.history = summary }
     }
 
@@ -150,9 +156,9 @@ final class NetworkMonitor: ObservableObject {
     func flushSync() {
         guard role == .primary else { return }
         queue.sync {
-            if let (minute, traffic, meta) = tracker.takePartialMinute() {
-                store?.addMinute(minute, traffic: traffic, meta: meta)
-            }
+            let partial = tracker.takePartialMinute()
+            store?.addMinute(partial?.0 ?? NetworkMonitor.minute(), traffic: partial?.1 ?? [:], meta: partial?.2 ?? [:],
+                             physical: physical.drain())
         }
     }
 
@@ -242,6 +248,8 @@ final class NetworkMonitor: ObservableObject {
 
     private func process(_ sample: NettopSample) {
         let now = Date()
+        // 先累加整机总量再交给 tracker：跨分钟那次采样的差分与 tracker 一样计入刚结束的分钟。
+        if role == .primary, let counters = physicalSampler.readCounters() { physical.ingest(counters) }
         let newState = tracker.ingest(sample, date: now)
         let lanInterval: TimeInterval = visibleClients > 0 ? 10 : 60
         var newDevices: [LANDevice]?
