@@ -48,6 +48,7 @@ def main():
              ROOT / "Sources/UI/NetworkWindow/NetworkLiveLinksPage.swift",
              ROOT / "Sources/UI/NetworkWindow/DailyTotalsCards.swift",
              ROOT / "Sources/UI/NetworkWindow/LinkHistoryModel.swift",
+             ROOT / "Sources/UI/NetworkWindow/LinkExport.swift",
              ROOT / "Sources/UI/NetworkWindow/AppsRange.swift"]
     catalog = json.loads((ROOT / "Resources/Localizable.xcstrings").read_text())["strings"]
     for file in files:

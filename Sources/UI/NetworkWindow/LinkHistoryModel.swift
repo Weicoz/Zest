@@ -15,6 +15,7 @@ final class LinkHistoryModel: ObservableObject {
     private var task: Task<Void, Never>?
     private var range = TotalsRange.today
     private var rule: String?
+    private var filter = LinkFilter()
     /// 范围或规则变化后，丢弃旧请求的结果。
     private var serial = 0
 
@@ -33,19 +34,20 @@ final class LinkHistoryModel: ObservableObject {
         task = nil
     }
 
-    func update(range: TotalsRange, rule: String?) {
+    func update(range: TotalsRange, rule: String?, filter: LinkFilter = LinkFilter()) {
         self.range = range
         self.rule = rule
+        self.filter = filter
         serial += 1
         reload()
     }
 
     private func reload() {
-        let (range, rule, id) = (range, rule, serial)
+        let (range, rule, filter, id) = (range, rule, filter, serial)
         queue.async { [weak self] in
             guard let self else { return }
             if self.store == nil { self.store = HistoryStore(migrate: false) }
-            guard let snap = self.store?.linkSnapshot(range, rule: rule) else { return }
+            guard let snap = self.store?.linkSnapshot(range, rule: rule, filter: filter) else { return }
             DispatchQueue.main.async { if id == self.serial { self.snapshot = snap } }
         }
     }

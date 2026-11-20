@@ -12,11 +12,14 @@
 		3F56D483B15BB31463B7D7DE /* NetworkLiveLinksPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */; };
 		F8EDE6359891122062C8C0FC /* DailyTotalsCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BDCA744D600381A855D0DF3 /* DailyTotalsCards.swift */; };
 		B2EF769E8FC000207D6D6B00 /* LinkHistoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E8E06D987C92695F873E8A /* LinkHistoryModel.swift */; };
+		A0A0A0A0A0A0A0A0A0000006 /* LinkExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0000005 /* LinkExport.swift */; };
 		C3CD8F7E47D05BEACE4A8DFF /* LiveLinksService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F95550EAA13598AE121B4A /* LiveLinksService.swift */; };
 		76428640E2B8AD473C37712C /* DailyTotals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CF03889E892B41C9E1931BE /* DailyTotals.swift */; };
 		B08060C4C29C063E871D64C4 /* LinkRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 417A3EF46497DC1982500D0B /* LinkRecorder.swift */; };
 		8D611FAC662287625A1F0724 /* HistoryStore+Links.swift in Sources */ = {isa = PBXBuildFile; fileRef = 669BBBF4C9E61D7B898D356C /* HistoryStore+Links.swift */; };
 		D5D2BE52A65AED8172829AD8 /* LinkHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11DE2460ACDE3D91B8938E7 /* LinkHistory.swift */; };
+		A0A0A0A0A0A0A0A0A0000004 /* LinkCSV.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0000003 /* LinkCSV.swift */; };
+		A0A0A0A0A0A0A0A0A0000002 /* LinkFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0000001 /* LinkFilter.swift */; };
 		101D1516ACFF03B3AEC437FC /* BettboxClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333928F51D1A6AC511B4320A /* BettboxClient.swift */; };
 		9C8BB8A70819EB62E56707C6 /* BettboxLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EF83D47388D504F3859C27 /* BettboxLedger.swift */; };
 		05B89019CD7B7E00139EB63D /* NetworkSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DD441C6BDD0C1FE15550A02 /* NetworkSummaryView.swift */; };
@@ -25,6 +28,7 @@
 		08FE8FCE92C3A047C065891B /* HistoryGeoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2574F221F87BEB9985F5A7 /* HistoryGeoTests.swift */; };
 		B92CB18C2F3969219E6272CC /* DailyTotalsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 286F663AA65E6879269A61B9 /* DailyTotalsTests.swift */; };
 		C81BFA44467EA2E557EA393B /* LinkHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C0D5B87A1EC7F00BD740129 /* LinkHistoryTests.swift */; };
+		A0A0A0A0A0A0A0A0A0000008 /* LinkCSVTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0000007 /* LinkCSVTests.swift */; };
 		0B553D26BBE032FAE53B0F2C /* NetworkConnectionsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A5A39475ECBCCD6D164F81 /* NetworkConnectionsPage.swift */; };
 		0C40D083C4181D8135F5EF28 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7EEB49D91DFCC83F7DA4503D /* Assets.xcassets */; };
 		104DA9792306B3D6527E6188 /* NetworkTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D7797DA28B430A9EDDEFBD /* NetworkTracker.swift */; };
@@ -104,11 +108,14 @@
 		F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkLiveLinksPage.swift; sourceTree = "<group>"; };
 		2BDCA744D600381A855D0DF3 /* DailyTotalsCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotalsCards.swift; sourceTree = "<group>"; };
 		B2E8E06D987C92695F873E8A /* LinkHistoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinkHistoryModel.swift"; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0000005 /* LinkExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinkExport.swift"; sourceTree = "<group>"; };
 		F3F95550EAA13598AE121B4A /* LiveLinksService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveLinksService.swift; sourceTree = "<group>"; };
 		8CF03889E892B41C9E1931BE /* DailyTotals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotals.swift; sourceTree = "<group>"; };
 		417A3EF46497DC1982500D0B /* LinkRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinkRecorder.swift"; sourceTree = "<group>"; };
 		669BBBF4C9E61D7B898D356C /* HistoryStore+Links.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HistoryStore+Links.swift"; sourceTree = "<group>"; };
 		F11DE2460ACDE3D91B8938E7 /* LinkHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinkHistory.swift"; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0000003 /* LinkCSV.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinkCSV.swift"; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0000001 /* LinkFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinkFilter.swift"; sourceTree = "<group>"; };
 		333928F51D1A6AC511B4320A /* BettboxClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BettboxClient.swift; sourceTree = "<group>"; };
 		27EF83D47388D504F3859C27 /* BettboxLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BettboxLedger.swift; sourceTree = "<group>"; };
 		060C1F7C09115A0E6A75CE6A /* ProcessesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessesView.swift; sourceTree = "<group>"; };
@@ -158,6 +165,7 @@
 		AB2574F221F87BEB9985F5A7 /* HistoryGeoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryGeoTests.swift; sourceTree = "<group>"; };
 		286F663AA65E6879269A61B9 /* DailyTotalsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTotalsTests.swift; sourceTree = "<group>"; };
 		8C0D5B87A1EC7F00BD740129 /* LinkHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinkHistoryTests.swift"; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0000007 /* LinkCSVTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LinkCSVTests.swift"; sourceTree = "<group>"; };
 		B40BD6A8A1AE95306483BD34 /* MemorySampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemorySampler.swift; sourceTree = "<group>"; };
 		B4385B5700D0CC695EB21A36 /* Zest-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Zest-Bridging-Header.h"; sourceTree = "<group>"; };
 		BB93A2C466B75284AC731B1B /* SystemInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemInfo.swift; sourceTree = "<group>"; };
@@ -204,6 +212,7 @@
 				AB2574F221F87BEB9985F5A7 /* HistoryGeoTests.swift */,
 				286F663AA65E6879269A61B9 /* DailyTotalsTests.swift */,
 				8C0D5B87A1EC7F00BD740129 /* LinkHistoryTests.swift */,
+				A0A0A0A0A0A0A0A0A0000007 /* LinkCSVTests.swift */,
 				FA446F269B32FED98C996135 /* LocalizationTests.swift */,
 				48CD32A57877AC8B6952AB75 /* NativeProcessTableTests.swift */,
 				C198107A6212BA0052165423 /* BettboxLedgerTests.swift */,
@@ -245,6 +254,7 @@
 				F511B4AF3FBDE4D78A96D509 /* NetworkLiveLinksPage.swift */,
 				2BDCA744D600381A855D0DF3 /* DailyTotalsCards.swift */,
 				B2E8E06D987C92695F873E8A /* LinkHistoryModel.swift */,
+				A0A0A0A0A0A0A0A0A0000005 /* LinkExport.swift */,
 				B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */,
 				5A9920AB0B34A62EB3EB55CC /* NetworkTopologyPage.swift */,
 				72E3D82707E62D88E189E3F0 /* NetworkWindowController.swift */,
@@ -277,6 +287,8 @@
 				417A3EF46497DC1982500D0B /* LinkRecorder.swift */,
 				669BBBF4C9E61D7B898D356C /* HistoryStore+Links.swift */,
 				F11DE2460ACDE3D91B8938E7 /* LinkHistory.swift */,
+				A0A0A0A0A0A0A0A0A0000003 /* LinkCSV.swift */,
+				A0A0A0A0A0A0A0A0A0000001 /* LinkFilter.swift */,
 				62D7797DA28B430A9EDDEFBD /* NetworkTracker.swift */,
 			);
 			path = Network;
@@ -484,6 +496,7 @@
 				08FE8FCE92C3A047C065891B /* HistoryGeoTests.swift in Sources */,
 				B92CB18C2F3969219E6272CC /* DailyTotalsTests.swift in Sources */,
 				C81BFA44467EA2E557EA393B /* LinkHistoryTests.swift in Sources */,
+				A0A0A0A0A0A0A0A0A0000008 /* LinkCSVTests.swift in Sources */,
 				F6D667281D7AA79FF1CD6A94 /* LocalizationTests.swift in Sources */,
 				2586AD3F949495D1F4D688B6 /* NativeProcessTableTests.swift in Sources */,
 				20838B9228EE43181FF95B6C /* BettboxLedgerTests.swift in Sources */,
@@ -529,6 +542,7 @@
 				3F56D483B15BB31463B7D7DE /* NetworkLiveLinksPage.swift in Sources */,
 				F8EDE6359891122062C8C0FC /* DailyTotalsCards.swift in Sources */,
 				B2EF769E8FC000207D6D6B00 /* LinkHistoryModel.swift in Sources */,
+				A0A0A0A0A0A0A0A0A0000006 /* LinkExport.swift in Sources */,
 				A3C5D7E9F1B20468AC13E5F7 /* AppsRange.swift in Sources */,
 				EED370FA9D17D019EE45D688 /* NetworkTopologyPage.swift in Sources */,
 				9C8BB8A70819EB62E56707C6 /* BettboxLedger.swift in Sources */,
@@ -538,6 +552,8 @@
 				B08060C4C29C063E871D64C4 /* LinkRecorder.swift in Sources */,
 				8D611FAC662287625A1F0724 /* HistoryStore+Links.swift in Sources */,
 				D5D2BE52A65AED8172829AD8 /* LinkHistory.swift in Sources */,
+				A0A0A0A0A0A0A0A0A0000004 /* LinkCSV.swift in Sources */,
+				A0A0A0A0A0A0A0A0A0000002 /* LinkFilter.swift in Sources */,
 				104DA9792306B3D6527E6188 /* NetworkTracker.swift in Sources */,
 				61A2C633C6B7A1F0958E4098 /* NetworkTypes.swift in Sources */,
 				A3BCAA52B55F77470DEA489B /* NetworkWindowController.swift in Sources */,

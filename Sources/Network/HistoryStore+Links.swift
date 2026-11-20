@@ -107,68 +107,92 @@ extension HistoryStore {
     }
 
     /// 范围内域名汇总（只含 30 天内的记录），可限定规则。
-    func linkDomains(_ range: DayRange, rule: String?) -> [LinkGroup] {
+    func linkDomains(_ range: DayRange, rule: String?, filter: LinkFilter = LinkFilter()) -> [LinkGroup] {
         guard let s = prepare("""
-            SELECT host, SUM(bytes_in), SUM(bytes_out) FROM link_domains
-            WHERE day >= ?1 AND day <= ?2\(rule == nil ? "" : " AND rule = ?3") GROUP BY host
+            SELECT host, rule, egress, app, SUM(bytes_in), SUM(bytes_out) FROM link_domains
+            WHERE day >= ?1 AND day <= ?2\(rule == nil ? "" : " AND rule = ?3") GROUP BY host, rule, egress, app
             """) else { return [] }
         defer { sqlite3_finalize(s) }
         sqlite3_bind_int64(s, 1, Int64(range.from)); sqlite3_bind_int64(s, 2, Int64(range.to))
         if let rule { bind(s, 3, rule) }
         var rows: [(name: String, traffic: LedgerTraffic)] = []
         while sqlite3_step(s) == SQLITE_ROW {
-            rows.append((text(s, 0) ?? "", LedgerTraffic(down: sqlite3_column_int64(s, 1), up: sqlite3_column_int64(s, 2))))
+            let host = text(s, 0) ?? ""
+            guard filter.matches(rule: text(s, 1) ?? "", exit: text(s, 2) ?? "", app: text(s, 3) ?? "", host: host) else { continue }
+            rows.append((host, LedgerTraffic(down: sqlite3_column_int64(s, 4), up: sqlite3_column_int64(s, 5))))
         }
         return LinkSnapshot.groups(rows)
     }
 
-    private func bars(_ table: String, column: String, keys: [Int], rule: String?) -> [LinkBar] {
+    private func bars(_ table: String, column: String, keys: [Int], rule: String?, filter: LinkFilter) -> [LinkBar] {
         guard let lo = keys.first, let hi = keys.last,
               let s = prepare("""
-                SELECT \(column), SUM(bytes_in), SUM(bytes_out) FROM \(table)
-                WHERE \(column) >= ?1 AND \(column) <= ?2\(rule == nil ? "" : " AND rule = ?3") GROUP BY \(column)
+                SELECT \(column), rule, egress, app, SUM(bytes_in), SUM(bytes_out) FROM \(table)
+                WHERE \(column) >= ?1 AND \(column) <= ?2\(rule == nil ? "" : " AND rule = ?3") GROUP BY \(column), rule, egress, app
                 """) else { return keys.map { LinkBar(key: $0, traffic: LedgerTraffic()) } }
         defer { sqlite3_finalize(s) }
         sqlite3_bind_int64(s, 1, Int64(lo)); sqlite3_bind_int64(s, 2, Int64(hi))
         if let rule { bind(s, 3, rule) }
         var m: [Int: LedgerTraffic] = [:]
         while sqlite3_step(s) == SQLITE_ROW {
-            m[Int(sqlite3_column_int64(s, 0))] = LedgerTraffic(down: sqlite3_column_int64(s, 1), up: sqlite3_column_int64(s, 2))
+            guard filter.matches(rule: text(s, 1) ?? "", exit: text(s, 2) ?? "", app: text(s, 3) ?? "") else { continue }
+            m[Int(sqlite3_column_int64(s, 0)), default: LedgerTraffic()].add(sqlite3_column_int64(s, 4), sqlite3_column_int64(s, 5))
         }
         return keys.map { LinkBar(key: $0, traffic: m[$0] ?? LedgerTraffic()) }
     }
 
     /// 最近 24 小时（含当前小时）每小时一根，从旧到新。
-    func linkHourlyBars(now: Date, rule: String?, calendar: Calendar) -> [LinkBar] {
+    func linkHourlyBars(now: Date, rule: String?, filter: LinkFilter = LinkFilter(), calendar: Calendar) -> [LinkBar] {
         let keys = (0..<HistoryStore.linkHourRetention).reversed().compactMap { back -> Int? in
             calendar.date(byAdding: .hour, value: -back, to: now).map { DayRange.hourKey(of: $0, calendar: calendar) }
         }
-        return bars("link_hours", column: "hour", keys: keys, rule: rule)
+        return bars("link_hours", column: "hour", keys: keys, rule: rule, filter: filter)
     }
 
     /// 范围内每天一根。
-    func linkDailyBars(_ range: DayRange, rule: String?, calendar: Calendar) -> [LinkBar] {
-        bars("link_days", column: "day", keys: range.days(calendar: calendar), rule: rule)
+    func linkDailyBars(_ range: DayRange, rule: String?, filter: LinkFilter = LinkFilter(), calendar: Calendar) -> [LinkBar] {
+        bars("link_days", column: "day", keys: range.days(calendar: calendar), rule: rule, filter: filter)
     }
 
     /// 链路页一次查询：规则始终列全部；出口、应用、域名、柱图与总量按 rule 过滤；未归属只在未选规则时有值。
-    func linkSnapshot(_ range: TotalsRange, rule: String?, now: Date = Date(), calendar: Calendar = .current) -> LinkSnapshot {
+    func linkSnapshot(_ range: TotalsRange, rule: String?, filter: LinkFilter = LinkFilter(), now: Date = Date(), calendar: Calendar = .current) -> LinkSnapshot {
         let days = range.dayRange(now: now, calendar: calendar)
         let rows = linkRows(days)
-        let real = rows.filter { $0.rule != LinkKey.unattributed }
+        let real = rows.filter { $0.rule != LinkKey.unattributed && filter.matches(rule: $0.rule, exit: $0.exit, app: $0.app) }
         let scoped = rule.map { r in real.filter { $0.rule == r } } ?? real
         var snap = LinkSnapshot()
         snap.rules = LinkSnapshot.groups(real.map { ($0.rule, $0.traffic) })
         snap.exits = LinkSnapshot.groups(scoped.map { ($0.exit, $0.traffic) })
         snap.apps = LinkSnapshot.groups(scoped.map { ($0.app, $0.traffic) })
         if rule == nil {
-            for r in rows where r.rule == LinkKey.unattributed { snap.unattributed.add(r.traffic.down, r.traffic.up) }
+            for r in rows where r.rule == LinkKey.unattributed && filter.isEmpty { snap.unattributed.add(r.traffic.down, r.traffic.up) }
         }
         snap.total = snap.unattributed
         for r in scoped { snap.total.add(r.traffic.down, r.traffic.up) }
-        snap.domains = linkDomains(days, rule: rule)
-        snap.hourly = linkHourlyBars(now: now, rule: rule, calendar: calendar)
-        snap.daily = linkDailyBars(days, rule: rule, calendar: calendar)
+        snap.domains = linkDomains(days, rule: rule, filter: filter)
+        snap.hourly = linkHourlyBars(now: now, rule: rule, filter: filter, calendar: calendar)
+        snap.daily = linkDailyBars(days, rule: rule, filter: filter, calendar: calendar)
         return snap
+    }
+
+    // MARK: 导出
+
+    /// 范围内的日汇总行与域名行（未筛选），交给 LinkCSV 组装。
+    func linkExportRecords(_ range: DayRange) -> (days: [LinkExportRecord], domains: [LinkExportRecord]) {
+        func fetch(_ sql: String, hasHost: Bool) -> [LinkExportRecord] {
+            guard let s = prepare(sql) else { return [] }
+            defer { sqlite3_finalize(s) }
+            sqlite3_bind_int64(s, 1, Int64(range.from)); sqlite3_bind_int64(s, 2, Int64(range.to))
+            var r: [LinkExportRecord] = []
+            let o: Int32 = hasHost ? 1 : 0
+            while sqlite3_step(s) == SQLITE_ROW {
+                r.append(LinkExportRecord(day: Int(sqlite3_column_int64(s, 0)), host: hasHost ? (text(s, 1) ?? "") : nil,
+                                          rule: text(s, 1 + o) ?? "", exit: text(s, 2 + o) ?? "", app: text(s, 3 + o) ?? "",
+                                          traffic: LedgerTraffic(down: sqlite3_column_int64(s, 4 + o), up: sqlite3_column_int64(s, 5 + o))))
+            }
+            return r
+        }
+        return (fetch("SELECT day, rule, egress, app, bytes_in, bytes_out FROM link_days WHERE day >= ?1 AND day <= ?2", hasHost: false),
+                fetch("SELECT day, host, rule, egress, app, bytes_in, bytes_out FROM link_domains WHERE day >= ?1 AND day <= ?2", hasHost: true))
     }
 }

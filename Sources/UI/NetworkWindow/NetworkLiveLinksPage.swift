@@ -12,10 +12,13 @@ struct NetworkLiveLinksPage: View {
     @ObservedObject var settings: AppSettings
     @State private var range = TotalsRange.today
     @State private var rule: String?
+    @State private var filter = LinkFilter()
 
     var body: some View {
         let snap = history.snapshot
-        let live = rule.map { r in service.ledger.links.filter { $0.rule == r } } ?? service.ledger.links
+        let live = service.ledger.links.filter { l in
+            (rule == nil || l.rule == rule) && filter.matches(rule: l.rule, exit: l.exit, app: l.app, host: l.host)
+        }
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 PageHeader(title: L10n.text("tab.links", defaultValue: "链路"),
@@ -29,6 +32,20 @@ struct NetworkLiveLinksPage: View {
                             .help(L10n.text("显示全部规则"))
                     }
                     Spacer()
+                }
+                HStack(spacing: 8) {
+                    TextField(L10n.text("links.search", defaultValue: "搜索域名、规则、出口、应用"), text: $filter.search)
+                        .textFieldStyle(.roundedBorder).frame(maxWidth: 260)
+                    Picker("", selection: $filter.mode) {
+                        Text(L10n.text("links.mode.all", defaultValue: "全部")).tag(LinkFilter.Mode.all)
+                        Text(L10n.text("links.mode.proxy", defaultValue: "仅代理")).tag(LinkFilter.Mode.proxy)
+                        Text(L10n.text("links.mode.direct", defaultValue: "仅直连")).tag(LinkFilter.Mode.direct)
+                    }
+                    .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 220)
+                    Spacer()
+                    Button { LinkExport.run(range: range, rule: rule, filter: filter) } label: {
+                        Label(L10n.text("links.export", defaultValue: "导出 CSV"), systemImage: "square.and.arrow.up")
+                    }
                 }
                 if let reason = reason {
                     Card {
@@ -97,10 +114,11 @@ struct NetworkLiveLinksPage: View {
             .padding(20)
         }
         .id(settings.appLanguage)
-        .onAppear { history.update(range: range, rule: rule); history.start() }
+        .onAppear { history.update(range: range, rule: rule, filter: filter); history.start() }
         .onDisappear { history.stop() }
-        .onChange(of: range) { history.update(range: $0, rule: rule) }
-        .onChange(of: rule) { history.update(range: range, rule: $0) }
+        .onChange(of: range) { history.update(range: $0, rule: rule, filter: filter) }
+        .onChange(of: rule) { history.update(range: range, rule: $0, filter: filter) }
+        .onChange(of: filter) { history.update(range: range, rule: rule, filter: $0) }
     }
 
     private func title(_ r: TotalsRange) -> String {
