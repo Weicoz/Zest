@@ -6885,6 +6885,40 @@
         }
       }
     },
+    "links.search.note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domain search covers the last 30 days only: older days cannot be searched by domain, and the hourly chart matches rule, exit and app only."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索按域名统计只覆盖最近 30 天：超过 30 天的日期无法按域名搜索，小时柱图也只按规则、出口、应用匹配。"
+          }
+        }
+      }
+    },
+    "links.export.openFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not read link history"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法读取链路历史"
+          }
+        }
+      }
+    },
     "tab.links" : {
       "comment" : "网络窗口侧边栏页签与链路页标题",
       "extractionState" : "manual",

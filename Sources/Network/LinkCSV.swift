@@ -28,6 +28,12 @@ enum LinkCSV {
         return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }
 
+    /// 文本列以 = + - @ Tab 回车开头时加 ' 前缀，防止表格软件当公式执行。
+    static func safe(_ s: String) -> String {
+        guard let c = s.first, "=+-@\t\r".contains(c) else { return s }
+        return "'" + s
+    }
+
     static func line(_ fields: [String]) -> String { fields.map(field).joined(separator: ",") }
 
     static func dayText(_ key: Int) -> String { String(format: "%04d-%02d-%02d", key / 10_000, key / 100 % 100, key % 100) }
@@ -36,15 +42,12 @@ enum LinkCSV {
     /// 不早于 domainCutoffDay 的日期用域名行，更早的日期用日汇总行（域名留空）；未归属行始终取自日汇总。
     static func document(days: [LinkExportRecord], domains: [LinkExportRecord], domainCutoffDay: Int,
                          filter: LinkFilter, rule: String?) -> String {
-        var rows = days.filter { $0.day < domainCutoffDay || $0.rule == LinkKey.unattributed }
-        rows += domains.filter { $0.day >= domainCutoffDay }
-        rows = rows.filter {
-            (rule == nil || $0.rule == rule) && filter.matches(rule: $0.rule, exit: $0.exit, app: $0.app, host: $0.host)
-        }
+        var rows = filter.pick(days: days, domains: domains, cutoff: domainCutoffDay, rule: rule, domainsForRecent: true)
         rows.sort { ($0.day, $0.host ?? "", $0.rule, $0.exit, $0.app) < ($1.day, $1.host ?? "", $1.rule, $1.exit, $1.app) }
         let body = rows.map { r in
-            line([dayText(r.day), "", r.host ?? "", "", "", r.app, r.rule == LinkKey.unattributed ? unattributedLabel : r.rule,
-                  "", "", r.exit, String(r.traffic.down), String(r.traffic.up)])
+            line([dayText(r.day), "", safe(r.host ?? ""), "", "", safe(r.app),
+                  r.rule == LinkKey.unattributed ? unattributedLabel : safe(r.rule), "", "", safe(r.exit),
+                  String(r.traffic.down), String(r.traffic.up)])
         }
         return ([line(header)] + body).joined(separator: "\r\n") + "\r\n"
     }

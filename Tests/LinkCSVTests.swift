@@ -56,6 +56,31 @@ final class LinkCSVTests: XCTestCase {
         XCTAssertEqual(body(LinkFilter(), rule: "R1").count, 1)
     }
 
+    func testPickUsesDomainRecordsForRecentDaysOnSearchOnly() {
+        let days = [rec(20260901, rule: "OldRule"), rec(20261107, rule: "R1", down: 50)]
+        let domains = [rec(20261107, host: "hit.test", rule: "R1", down: 7), rec(20261107, host: "other.test", rule: "R1", down: 9)]
+        let f = LinkFilter(search: "hit.test")
+        let rows = f.pick(days: days, domains: domains, cutoff: 20261008, rule: nil)
+        XCTAssertEqual(rows.map(\.traffic.down), [7])   // 旧日期无域名数据，不命中；近期按域名重算
+        XCTAssertEqual(LinkFilter(search: "oldrule").pick(days: days, domains: domains, cutoff: 20261008, rule: nil).map(\.day), [20260901])
+        XCTAssertEqual(LinkFilter().pick(days: days, domains: domains, cutoff: 20261008, rule: nil).map(\.traffic.down), [1, 50])
+    }
+
+    func testFormulaPrefixOnTextColumnsOnly() {
+        for c in ["=1+1", "+1", "-1", "@x", "\tx", "\rx"] { XCTAssertEqual(LinkCSV.safe(c), "'" + c) }
+        XCTAssertEqual(LinkCSV.safe("a=b"), "a=b")
+        let l = lines(LinkCSV.document(days: [], domains: [rec(20261107, host: "=cmd", app: "-app", down: 5)],
+                                       domainCutoffDay: 20261001, filter: LinkFilter(), rule: nil))
+        XCTAssertEqual(l[1], "2026-11-07,,'=cmd,,,'-app,R1,,,node-a,5,2")
+    }
+
+    func testProxyModeExcludesRejectAndEmptyExit() {
+        let f = LinkFilter(mode: .proxy)
+        XCTAssertTrue(f.matches(rule: "R", exit: "node-a", app: "a"))
+        for e in ["DIRECT", "REJECT", "reject-drop", ""] { XCTAssertFalse(f.matches(rule: "R", exit: e, app: "a"), e) }
+        XCTAssertFalse(LinkFilter(mode: .direct).matches(rule: "R", exit: "REJECT", app: "a"))
+    }
+
     // MARK: 搜索与筛选作用于存储查询
 
     private var url: URL!
@@ -87,8 +112,12 @@ final class LinkCSVTests: XCTestCase {
         XCTAssertEqual(direct.unattributed, LedgerTraffic())
         let proxy = snap(LinkFilter(mode: .proxy))
         XCTAssertEqual(proxy.total.down, 100)
-        let search = snap(LinkFilter(search: "PROXY.TEST"))   // 域名搜索：只缩小域名列表
+        let search = snap(LinkFilter(search: "PROXY.TEST"))   // 域名搜索：30 天内用域名记录重算汇总与按天柱图
         XCTAssertEqual(search.domains.map(\.name), ["Proxy.test"])
+        XCTAssertEqual(search.total.down, 100)
+        XCTAssertEqual(search.rules.map(\.name), ["R2"])
+        XCTAssertEqual(search.daily.last?.traffic.down, 100)
+        XCTAssertEqual(search.unattributed, LedgerTraffic())
         XCTAssertEqual(snap(LinkFilter(search: "node-a")).total.down, 100)
         XCTAssertEqual(snap(LinkFilter(search: "APP1")).total.down, 110)
     }

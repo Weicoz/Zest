@@ -47,6 +47,10 @@ struct NetworkLiveLinksPage: View {
                         Label(L10n.text("links.export", defaultValue: "导出 CSV"), systemImage: "square.and.arrow.up")
                     }
                 }
+                if filter.hasSearch {
+                    Text(L10n.text("links.search.note", defaultValue: "搜索按域名统计只覆盖最近 30 天：超过 30 天的日期无法按域名搜索，小时柱图也只按规则、出口、应用匹配。"))
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                }
                 if let reason = reason {
                     Card {
                         Label(reason, systemImage: "exclamationmark.triangle").font(.system(size: 13, weight: .semibold))

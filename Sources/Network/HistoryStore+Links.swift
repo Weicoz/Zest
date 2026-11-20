@@ -149,36 +149,34 @@ extension HistoryStore {
         return bars("link_hours", column: "hour", keys: keys, rule: rule, filter: filter)
     }
 
-    /// 范围内每天一根。
-    func linkDailyBars(_ range: DayRange, rule: String?, filter: LinkFilter = LinkFilter(), calendar: Calendar) -> [LinkBar] {
-        bars("link_days", column: "day", keys: range.days(calendar: calendar), rule: rule, filter: filter)
-    }
-
     /// 链路页一次查询：规则始终列全部；出口、应用、域名、柱图与总量按 rule 过滤；未归属只在未选规则时有值。
     func linkSnapshot(_ range: TotalsRange, rule: String?, filter: LinkFilter = LinkFilter(), now: Date = Date(), calendar: Calendar = .current) -> LinkSnapshot {
         let days = range.dayRange(now: now, calendar: calendar)
-        let rows = linkRows(days)
-        let real = rows.filter { $0.rule != LinkKey.unattributed && filter.matches(rule: $0.rule, exit: $0.exit, app: $0.app) }
-        let scoped = rule.map { r in real.filter { $0.rule == r } } ?? real
+        let cutoff = calendar.date(byAdding: .day, value: -HistoryStore.domainRetentionDays, to: now)
+            .map { DayRange.key(of: $0, calendar: calendar) } ?? 0
+        let rec = linkExportRecords(days, domains: filter.hasSearch)
+        let real = filter.pick(days: rec.days, domains: rec.domains, cutoff: cutoff, rule: nil).filter { $0.rule != LinkKey.unattributed }
+        let scopedAll = filter.pick(days: rec.days, domains: rec.domains, cutoff: cutoff, rule: rule)
+        let scoped = scopedAll.filter { $0.rule != LinkKey.unattributed }
         var snap = LinkSnapshot()
         snap.rules = LinkSnapshot.groups(real.map { ($0.rule, $0.traffic) })
         snap.exits = LinkSnapshot.groups(scoped.map { ($0.exit, $0.traffic) })
         snap.apps = LinkSnapshot.groups(scoped.map { ($0.app, $0.traffic) })
-        if rule == nil {
-            for r in rows where r.rule == LinkKey.unattributed && filter.isEmpty { snap.unattributed.add(r.traffic.down, r.traffic.up) }
-        }
+        for r in scopedAll where r.rule == LinkKey.unattributed { snap.unattributed.add(r.traffic.down, r.traffic.up) }
         snap.total = snap.unattributed
         for r in scoped { snap.total.add(r.traffic.down, r.traffic.up) }
         snap.domains = linkDomains(days, rule: rule, filter: filter)
         snap.hourly = linkHourlyBars(now: now, rule: rule, filter: filter, calendar: calendar)
-        snap.daily = linkDailyBars(days, rule: rule, filter: filter, calendar: calendar)
+        var perDay: [Int: LedgerTraffic] = [:]
+        for r in scopedAll { perDay[r.day, default: LedgerTraffic()].add(r.traffic.down, r.traffic.up) }
+        snap.daily = days.days(calendar: calendar).map { LinkBar(key: $0, traffic: perDay[$0] ?? LedgerTraffic()) }
         return snap
     }
 
     // MARK: 导出
 
     /// 范围内的日汇总行与域名行（未筛选），交给 LinkCSV 组装。
-    func linkExportRecords(_ range: DayRange) -> (days: [LinkExportRecord], domains: [LinkExportRecord]) {
+    func linkExportRecords(_ range: DayRange, domains withDomains: Bool = true) -> (days: [LinkExportRecord], domains: [LinkExportRecord]) {
         func fetch(_ sql: String, hasHost: Bool) -> [LinkExportRecord] {
             guard let s = prepare(sql) else { return [] }
             defer { sqlite3_finalize(s) }
@@ -193,6 +191,6 @@ extension HistoryStore {
             return r
         }
         return (fetch("SELECT day, rule, egress, app, bytes_in, bytes_out FROM link_days WHERE day >= ?1 AND day <= ?2", hasHost: false),
-                fetch("SELECT day, host, rule, egress, app, bytes_in, bytes_out FROM link_domains WHERE day >= ?1 AND day <= ?2", hasHost: true))
+                withDomains ? fetch("SELECT day, host, rule, egress, app, bytes_in, bytes_out FROM link_domains WHERE day >= ?1 AND day <= ?2", hasHost: true) : [])
     }
 }
