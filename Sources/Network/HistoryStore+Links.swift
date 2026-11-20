@@ -31,7 +31,10 @@ extension HistoryStore {
             """)
     }
 
-    func clearLinks() { exec("DELETE FROM link_days; DELETE FROM link_domains; DELETE FROM link_hours") }
+    func clearLinks() {
+        guard exec("BEGIN") else { return }
+        if !exec("DELETE FROM link_days; DELETE FROM link_domains; DELETE FROM link_hours") || !exec("COMMIT") { exec("ROLLBACK") }
+    }
 
     func pruneLinks(now: Date, calendar: Calendar) {
         if let cut = calendar.date(byAdding: .day, value: -HistoryStore.domainRetentionDays, to: now),

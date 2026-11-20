@@ -145,6 +145,21 @@ final class LinkHistoryTests: XCTestCase {
         XCTAssertEqual(primary.linkSnapshot(.today, rule: nil, now: at, calendar: cal).total, LedgerTraffic())
     }
 
+    func testViewerNeverPrunes() throws {
+        let at = date(11, 7, 10)
+        do {
+            let primary = try XCTUnwrap(HistoryStore(url: url))
+            primary.addLinks(delta(at, down: 5))
+            primary.addMinute(Int(at.timeIntervalSince1970 / 60), traffic: ["A": TrafficPoint(bytesIn: 3, bytesOut: 0)], meta: [:], calendar: cal)
+        }
+        let viewer = try XCTUnwrap(HistoryStore(url: url, migrate: false))
+        let later = date(12, 31)   // 远超 24 小时与 30 天
+        viewer.prune(nowMinute: Int(later.timeIntervalSince1970 / 60), now: later, calendar: cal)
+        XCTAssertEqual(viewer.appTotals(sinceMinute: 0).first?.bytesIn, 3)
+        XCTAssertEqual(viewer.linkDomains(DayRange(from: 20261107, to: 20261107), rule: nil).map(\.name), ["h.example.test"])
+        XCTAssertEqual(viewer.linkHourlyBars(now: at, rule: nil, calendar: cal).reduce(0) { $0 + $1.traffic.down }, 5)
+    }
+
     func testViewerOnFreshDatabaseHasNoLinkTables() throws {
         let viewer = try XCTUnwrap(HistoryStore(url: url, migrate: false))
         XCTAssertFalse(viewer.addLinks(delta(date(11, 7), down: 1)))   // 查看器不建表，写入失败

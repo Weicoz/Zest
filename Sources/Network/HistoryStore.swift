@@ -32,6 +32,8 @@ final class HistoryStore {
     static let retentionMinutes = 24 * 60
     var db: OpaquePointer?
     let url: URL
+    /// 查看器（migrate: false）完全只读：不建表、不回填、不清理。
+    private let readOnly: Bool
 
     static let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
@@ -44,6 +46,7 @@ final class HistoryStore {
 
     init?(url: URL = HistoryStore.defaultURL, migrate: Bool = true, calendar: Calendar = .current) {
         self.url = url
+        self.readOnly = !migrate
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         guard sqlite3_open_v2(url.path, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nil) == SQLITE_OK
         else { return nil }
@@ -224,6 +227,7 @@ final class HistoryStore {
 
     /// 删除 24 小时以前的数据。
     func prune(nowMinute: Int, now: Date = Date(), calendar: Calendar = .current) {
+        guard !readOnly else { return }
         pruneLinks(now: now, calendar: calendar)
         if let s = prepare("DELETE FROM traffic WHERE minute < ?") {
             sqlite3_bind_int64(s, 1, Int64(nowMinute - HistoryStore.retentionMinutes)); sqlite3_step(s); sqlite3_finalize(s)

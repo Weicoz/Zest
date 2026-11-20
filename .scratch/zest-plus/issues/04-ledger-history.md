@@ -28,3 +28,4 @@
 - `HistoryStore` 的 `db`、`exec`、`prepare`、`bind`、`text` 由 private 放宽为 internal，供扩展文件使用；`prune` 新增 `calendar` 参数（默认 `.current`）。查看器进程的 `prune`（既有行为）也会删链路过期行，与主进程规则一致。
 - 「清除历史」确认文案未改（既有文案已写「每日汇总」，链路表属日汇总）。
 - 未做：启动 `build/Zest.app` 截图、全检（主会话执行）。链路页布局未目视，窗口较矮时靠滚动。
+- 审查修复：`HistoryStore` 以 `migrate: false` 打开时 `prune` 为空操作（查看器完全只读，清理只由主进程做）；`clearHistory` 后丢弃在途 fetch 结果（代次计数，且账本重设基线）；`clearLinks` 三条 DELETE 放进单事务。代次丢弃与清除事务无单测（采样服务按约定不测）。

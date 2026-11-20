@@ -15,6 +15,8 @@ final class LinkRecorder: @unchecked Sendable {
     private var ledger = TrafficLedger()
     private var pending = LedgerDelta()
     private var inFlight = false
+    /// 清除历史时加一；代次不符的在途结果丢弃，不写回清除前的增量。
+    private var generation = 0
 
     init(queue: DispatchQueue, calendar: Calendar = .current) {
         self.queue = queue
@@ -26,14 +28,16 @@ final class LinkRecorder: @unchecked Sendable {
         guard store != nil, !inFlight else { return }
         guard case .success(let client) = BettboxClient.load() else { return ledger.interrupt() }
         inFlight = true
+        let gen = generation
         Task { [self] in
             let result = await client.fetch()
-            queue.async { self.handle(result, store) }
+            queue.async { self.handle(result, store, gen) }
         }
     }
 
-    private func handle(_ result: BettboxResult, _ store: HistoryStore?) {
+    private func handle(_ result: BettboxResult, _ store: HistoryStore?, _ gen: Int) {
         inFlight = false
+        guard gen == generation else { return ledger.interrupt() }   // 下一份快照只作新基线
         switch result {
         case .available(let payload): pending.merge(ledger.ingest(payload, at: Date(), calendar: calendar))
         case .cancelled: break
@@ -55,5 +59,8 @@ final class LinkRecorder: @unchecked Sendable {
     }
 
     /// 清除历史后丢弃尚未写入的增量（保留基线）。
-    func discardPending() { pending = LedgerDelta() }
+    func discardPending() {
+        pending = LedgerDelta()
+        generation += 1
+    }
 }
