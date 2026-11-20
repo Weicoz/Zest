@@ -56,6 +56,15 @@ struct PhysicalAccumulator {
         pending.bytesOut &+= d.bytesOut
     }
 
+    /// 写库失败时放回已取出的增量，下一分钟重试。
+    mutating func restore(_ c: InterfaceCounters) {
+        pending.bytesIn &+= c.bytesIn
+        pending.bytesOut &+= c.bytesOut
+    }
+
+    /// 清除历史后丢弃尚未写入的增量（保留基线）。
+    mutating func discardPending() { pending = InterfaceCounters(bytesIn: 0, bytesOut: 0) }
+
     mutating func drain() -> InterfaceCounters {
         defer { pending = InterfaceCounters(bytesIn: 0, bytesOut: 0) }
         return pending

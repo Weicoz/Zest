@@ -115,7 +115,8 @@ final class NetworkMonitor: ObservableObject {
             guard let self, let store = self.store else { return }
             // 历史只由主进程写入；查看器只读，避免重复计入。
             guard self.role == .primary else { return }
-            store.addMinute(minute, traffic: traffic, meta: meta, physical: self.physical.drain())
+            let delta = self.physical.drain()
+            if !store.addMinute(minute, traffic: traffic, meta: meta, physical: delta) { self.physical.restore(delta) }
             store.prune(nowMinute: minute + 1)
             self.refreshHistory()
         }
@@ -157,14 +158,16 @@ final class NetworkMonitor: ObservableObject {
         guard role == .primary else { return }
         queue.sync {
             let partial = tracker.takePartialMinute()
-            store?.addMinute(partial?.0 ?? NetworkMonitor.minute(), traffic: partial?.1 ?? [:], meta: partial?.2 ?? [:],
-                             physical: physical.drain())
+            let delta = physical.drain()
+            if store?.addMinute(partial?.0 ?? NetworkMonitor.minute(), traffic: partial?.1 ?? [:], meta: partial?.2 ?? [:],
+                                physical: delta) == false { physical.restore(delta) }
         }
     }
 
     func clearHistory() {
         queue.async { [self] in
             store?.clearAll()
+            physical.discardPending()
             refreshHistory()
             DispatchQueue.main.async { self.appDay.removeAll() }
         }

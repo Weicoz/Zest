@@ -92,11 +92,14 @@ final class HistoryStore {
 
     /// 写入（累加）一分钟内各应用的流量。同一分钟重复写入时累加，适合退出前写入未满一分钟的数据。
     /// physical：同一时段的整机总量增量，在同一事务内累加到该分钟所在本地日的日汇总（永不被 prune 清理）。
+    /// 任一步骤失败则整体回滚并返回 false（调用方应保留 physical 增量以便重试）。
+    @discardableResult
     func addMinute(_ minute: Int, traffic: [String: TrafficPoint], meta: [String: AppMeta],
-                   physical: InterfaceCounters? = nil, calendar: Calendar = .current) {
+                   physical: InterfaceCounters? = nil, calendar: Calendar = .current) -> Bool {
         let hasPhysical = physical.map { $0.bytesIn > 0 || $0.bytesOut > 0 } ?? false
-        guard !traffic.isEmpty || hasPhysical else { return }
-        exec("BEGIN")
+        guard !traffic.isEmpty || hasPhysical else { return true }
+        guard exec("BEGIN") else { return false }
+        var ok = true
         if let ins = prepare("""
             INSERT INTO traffic(minute, app_key, bytes_in, bytes_out) VALUES(?,?,?,?)
             ON CONFLICT(minute, app_key) DO UPDATE SET bytes_in = bytes_in + excluded.bytes_in,
@@ -108,29 +111,32 @@ final class HistoryStore {
                 bind(ins, 2, key)
                 sqlite3_bind_int64(ins, 3, Int64(t.bytesIn))
                 sqlite3_bind_int64(ins, 4, Int64(t.bytesOut))
-                sqlite3_step(ins)
+                if sqlite3_step(ins) != SQLITE_DONE { ok = false }
                 if let m = meta[key] {
                     sqlite3_reset(app)
                     bind(app, 1, key); bind(app, 2, m.name); bind(app, 3, m.bundlePath)
                     sqlite3_bind_int(app, 4, Int32(m.kind.rawValue))
-                    sqlite3_step(app)
+                    if sqlite3_step(app) != SQLITE_DONE { ok = false }
                 }
             }
             sqlite3_finalize(ins)
             sqlite3_finalize(app)
-        }
-        if let physical, hasPhysical, let daily = prepare("""
+        } else if !traffic.isEmpty { ok = false }
+        if let physical, hasPhysical {
+            guard let daily = prepare("""
             INSERT INTO daily_physical(day, bytes_in, bytes_out) VALUES(?,?,?)
             ON CONFLICT(day) DO UPDATE SET bytes_in = bytes_in + excluded.bytes_in, bytes_out = bytes_out + excluded.bytes_out
-            """) {
+            """) else { exec("ROLLBACK"); return false }
             let day = DayRange.key(of: Date(timeIntervalSince1970: Double(minute) * 60), calendar: calendar)
             sqlite3_bind_int64(daily, 1, Int64(day))
             sqlite3_bind_int64(daily, 2, Int64(clamping: physical.bytesIn))
             sqlite3_bind_int64(daily, 3, Int64(clamping: physical.bytesOut))
-            sqlite3_step(daily)
+            if sqlite3_step(daily) != SQLITE_DONE { ok = false }
             sqlite3_finalize(daily)
         }
-        exec("COMMIT")
+        if ok, exec("COMMIT") { return true }
+        exec("ROLLBACK")
+        return false
     }
 
     func addAlerts(_ alerts: [NetworkAlert]) {

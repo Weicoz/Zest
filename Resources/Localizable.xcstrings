@@ -3853,20 +3853,20 @@
         }
       }
     },
-    "每分钟保存各应用的收发字节与告警到本机（~/Library/Application Support），24 小时前的数据自动删除，不会上传。" : {
+    "每分钟保存各应用的收发字节与告警到本机（~/Library/Application Support），24 小时前的分钟明细自动删除，每日汇总永久保留，不会上传。" : {
       "comment" : "网络历史区段的说明",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Once a minute, each app's sent and received bytes and alerts are saved on this Mac (~/Library/Application Support). Data older than 24 hours is deleted automatically and is never uploaded."
+            "value" : "Once a minute, each app's sent and received bytes and alerts are saved on this Mac (~/Library/Application Support). Minute details older than 24 hours are deleted automatically; daily totals are kept permanently. Nothing is uploaded."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每分钟保存各应用的收发字节与告警到本机（~/Library/Application Support），24 小时前的数据自动删除，不会上传。"
+            "value" : "每分钟保存各应用的收发字节与告警到本机（~/Library/Application Support），24 小时前的分钟明细自动删除，每日汇总永久保留，不会上传。"
           }
         }
       }

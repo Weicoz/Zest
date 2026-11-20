@@ -163,7 +163,7 @@ private struct HistorySection: View {
                 Text(String(format: L10n.text("保留 24 小时 · 占用 %@"), Fmt.bytes(Double(network.history.storeSize))))
                     .foregroundStyle(.secondary)
             }
-            Text(L10n.text("每分钟保存各应用的收发字节与告警到本机（~/Library/Application Support），24 小时前的数据自动删除，不会上传。"))
+            Text(L10n.text("每分钟保存各应用的收发字节与告警到本机（~/Library/Application Support），24 小时前的分钟明细自动删除，每日汇总永久保留，不会上传。"))
                 .font(.caption).foregroundStyle(.secondary)
             Button(confirming ? L10n.text("确认清除分钟明细、告警与每日汇总？") : L10n.text("清除网络历史"), role: .destructive) {
                 if confirming { network.clearHistory(); confirming = false } else { confirming = true }

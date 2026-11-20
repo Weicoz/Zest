@@ -97,6 +97,39 @@ final class DailyTotalsTests: XCTestCase {
         XCTAssertEqual(store.appTotals(sinceMinute: 0).first?.bytesIn, 42)
     }
 
+    func testFailedWriteRollsBackMinuteAndDailyTotals() throws {
+        let store = try XCTUnwrap(HistoryStore(url: url))
+        // 另一连接装一个让日汇总插入失败的触发器，模拟写库中途失败。
+        var raw: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(url.path, &raw), SQLITE_OK)
+        XCTAssertEqual(sqlite3_exec(raw, "CREATE TRIGGER fail BEFORE INSERT ON daily_physical BEGIN SELECT RAISE(ABORT,'x'); END;",
+                                    nil, nil, nil), SQLITE_OK)
+        let d = date(2026, 11, 7, 10)
+        let ok = store.addMinute(minute(d), traffic: ["A": TrafficPoint(bytesIn: 5, bytesOut: 1)], meta: [:],
+                                 physical: InterfaceCounters(bytesIn: 9, bytesOut: 1), calendar: cal)
+        XCTAssertFalse(ok)
+        XCTAssertTrue(store.appTotals(sinceMinute: 0).isEmpty)
+        XCTAssertEqual(total(store, .today, now: d), 0)
+        // 故障消除后重试成功，且只计一次。
+        XCTAssertEqual(sqlite3_exec(raw, "DROP TRIGGER fail", nil, nil, nil), SQLITE_OK)
+        sqlite3_close(raw)
+        XCTAssertTrue(store.addMinute(minute(d), traffic: ["A": TrafficPoint(bytesIn: 5, bytesOut: 1)], meta: [:],
+                                      physical: InterfaceCounters(bytesIn: 9, bytesOut: 1), calendar: cal))
+        XCTAssertEqual(store.appTotals(sinceMinute: 0).first?.bytesIn, 5)
+        XCTAssertEqual(total(store, .today, now: d), 9)
+    }
+
+    func testAccumulatorRestoreAndDiscard() {
+        var acc = PhysicalAccumulator()
+        acc.ingest([1: InterfaceCounters(bytesIn: 0, bytesOut: 0)])
+        acc.ingest([1: InterfaceCounters(bytesIn: 10, bytesOut: 2)])
+        let d = acc.drain()
+        acc.restore(d)
+        XCTAssertEqual(acc.pending, InterfaceCounters(bytesIn: 10, bytesOut: 2))
+        acc.discardPending()
+        XCTAssertEqual(acc.pending, InterfaceCounters(bytesIn: 0, bytesOut: 0))
+    }
+
     func testAccumulatorBaselineWrapAndRestart() {
         func c(_ i: UInt64, _ o: UInt64) -> [UInt16: InterfaceCounters] { [1: InterfaceCounters(bytesIn: i, bytesOut: o)] }
         var acc = PhysicalAccumulator()
