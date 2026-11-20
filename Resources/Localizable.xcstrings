@@ -3818,13 +3818,13 @@
       }
     },
     "正常" : {
-      "comment" : "状态正常。内存压力与散热状态共用。",
+      "comment" : "磁盘健康页",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Normal"
+            "value" : "Verified"
           }
         },
         "zh-Hans" : {
@@ -7639,24 +7639,6 @@
         }
       }
     },
-    "即将推出" : {
-      "comment" : "磁盘窗口占位页",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Coming soon"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "即将推出"
-          }
-        }
-      }
-    },
     "按写入" : {
       "comment" : "磁盘排行排序",
       "extractionState" : "manual",
@@ -7869,6 +7851,132 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest 发送通知。"
+          }
+        }
+      }
+    },
+    "此磁盘未提供 SMART 健康信息" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This disk does not provide SMART health information"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此磁盘未提供 SMART 健康信息"
+          }
+        }
+      }
+    },
+    "读取健康信息失败" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to read health information"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读取健康信息失败"
+          }
+        }
+      }
+    },
+    "SMART 状态" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMART status"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMART 状态"
+          }
+        }
+      }
+    },
+    "寿命已用" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life used"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "寿命已用"
+          }
+        }
+      }
+    },
+    "累计写入" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total written"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累计写入"
+          }
+        }
+      }
+    },
+    "温度" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temperature"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "温度"
+          }
+        }
+      }
+    },
+    "异常" : {
+      "comment" : "磁盘健康页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "异常"
           }
         }
       }

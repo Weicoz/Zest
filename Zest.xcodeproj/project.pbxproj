@@ -9,9 +9,11 @@
 /* Begin PBXBuildFile section */
 		E1E1E1E1E1E1E1E11550000 /* DiskLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */; };
 		E1E1E1E1E1E1E1E11580000 /* WriteAlertTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */; };
+		E1E1E1E1E1E1E1E11600000 /* DiskHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01600000 /* DiskHealthTests.swift */; };
 		E1E1E1E1E1E1E1E11540000 /* DiskWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01540000 /* DiskWindowView.swift */; };
 		E1E1E1E1E1E1E1E11530000 /* DiskWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01530000 /* DiskWindowController.swift */; };
 		E1E1E1E1E1E1E1E11570000 /* DiskAlertsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01570000 /* DiskAlertsPage.swift */; };
+		E1E1E1E1E1E1E1E11590000 /* DiskHealthPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01590000 /* DiskHealthPage.swift */; };
 		E1E1E1E1E1E1E1E11520000 /* DiskIOService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01520000 /* DiskIOService.swift */; };
 		E1E1E1E1E1E1E1E11510000 /* HistoryStore+Disk.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01510000 /* HistoryStore+Disk.swift */; };
 		E1E1E1E1E1E1E1E11500000 /* DiskLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01500000 /* DiskLedger.swift */; };
@@ -56,6 +58,7 @@
 		3277C7D8B406FD80D1978EB2 /* PanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9944E4BB1E3C6A8AE6871404 /* PanelView.swift */; };
 		3F02CDF72BA06A5DF84A66B3 /* Sysctl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A47F1EB2A4C8326C8D8E234 /* Sysctl.swift */; };
 		41353588059B14FB909F6222 /* DiskSampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3DB65FDEB877349FB1DD1EE /* DiskSampler.swift */; };
+		A3353588059B14FB909F6222 /* DiskHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3DB65FDEB877349FB1DD1EE /* DiskHealth.swift */; };
 		476422FFB86DA72866CC474A /* SMCBridge.c in Sources */ = {isa = PBXBuildFile; fileRef = 72BF86B1CF680E40015E3D46 /* SMCBridge.c */; };
 		47709F276D507D7F9082C879 /* geoip.deflate in Resources */ = {isa = PBXBuildFile; fileRef = 1EF23E91A581D1EA5DF9F2A1 /* geoip.deflate */; };
 		56CB0F79F474D816F08C201D /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 527EA9C8FDA034DB2DD4C1B6 /* NetworkMonitor.swift */; };
@@ -114,9 +117,11 @@
 /* Begin PBXFileReference section */
 		E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskLedgerTests.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WriteAlertTests.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01600000 /* DiskHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskHealthTests.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01540000 /* DiskWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskWindowView.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01530000 /* DiskWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskWindowController.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01570000 /* DiskAlertsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskAlertsPage.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01590000 /* DiskHealthPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskHealthPage.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01520000 /* DiskIOService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskIOService.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01510000 /* HistoryStore+Disk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HistoryStore+Disk.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01500000 /* DiskLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskLedger.swift"; sourceTree = "<group>"; };
@@ -200,6 +205,7 @@
 		EA328853544B1E1E5DACEE12 /* PerformanceLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceLog.swift; sourceTree = "<group>"; };
 		F28FCF9FA038C630935AA86E /* MonitorEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorEngine.swift; sourceTree = "<group>"; };
 		F3DB65FDEB877349FB1DD1EE /* DiskSampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskSampler.swift; sourceTree = "<group>"; };
+		A3DB65FDEB877349FB1DD1EE /* DiskHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskHealth.swift; sourceTree = "<group>"; };
 		F831F2578FB3F07D53D3CACE /* NetworkOverviewPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkOverviewPage.swift; sourceTree = "<group>"; };
 		F98BFD322AD8F87D8E2468B2 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		FA446F269B32FED98C996135 /* LocalizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationTests.swift; sourceTree = "<group>"; };
@@ -231,6 +237,7 @@
 				286F663AA65E6879269A61B9 /* DailyTotalsTests.swift */,
 				E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */,
 				E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */,
+				E0E0E0E0E0E0E0E01600000 /* DiskHealthTests.swift */,
 				8C0D5B87A1EC7F00BD740129 /* LinkHistoryTests.swift */,
 				A0A0A0A0A0A0A0A0A0000007 /* LinkCSVTests.swift */,
 				FA446F269B32FED98C996135 /* LocalizationTests.swift */,
@@ -276,6 +283,7 @@
 				E0E0E0E0E0E0E0E01540000 /* DiskWindowView.swift */,
 				E0E0E0E0E0E0E0E01530000 /* DiskWindowController.swift */,
 				E0E0E0E0E0E0E0E01570000 /* DiskAlertsPage.swift */,
+				E0E0E0E0E0E0E0E01590000 /* DiskHealthPage.swift */,
 				B2E8E06D987C92695F873E8A /* LinkHistoryModel.swift */,
 				A0A0A0A0A0A0A0A0A0000005 /* LinkExport.swift */,
 				B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */,
@@ -385,6 +393,7 @@
 				CBFE52A45133449075A26FF5 /* QuickTool.swift */,
 				5CC6F5E389714CE4BAF1AF07 /* CPUSampler.swift */,
 				F3DB65FDEB877349FB1DD1EE /* DiskSampler.swift */,
+				A3DB65FDEB877349FB1DD1EE /* DiskHealth.swift */,
 				85BD5800EDD1870B405D7491 /* Formatters.swift */,
 				B40BD6A8A1AE95306483BD34 /* MemorySampler.swift */,
 				F28FCF9FA038C630935AA86E /* MonitorEngine.swift */,
@@ -524,6 +533,7 @@
 				B92CB18C2F3969219E6272CC /* DailyTotalsTests.swift in Sources */,
 				E1E1E1E1E1E1E1E11550000 /* DiskLedgerTests.swift in Sources */,
 				E1E1E1E1E1E1E1E11580000 /* WriteAlertTests.swift in Sources */,
+				E1E1E1E1E1E1E1E11600000 /* DiskHealthTests.swift in Sources */,
 				C81BFA44467EA2E557EA393B /* LinkHistoryTests.swift in Sources */,
 				A0A0A0A0A0A0A0A0A0000008 /* LinkCSVTests.swift in Sources */,
 				F6D667281D7AA79FF1CD6A94 /* LocalizationTests.swift in Sources */,
@@ -551,6 +561,7 @@
 				FD6A617D899EEAAC7DDBCF97 /* CPUSampler.swift in Sources */,
 				FC5EA2DC2B50F43EAEDAE87A /* Components.swift in Sources */,
 				41353588059B14FB909F6222 /* DiskSampler.swift in Sources */,
+				A3353588059B14FB909F6222 /* DiskHealth.swift in Sources */,
 				89D0373E546386F828BF5B03 /* Formatters.swift in Sources */,
 				1DDA75F31C248DA0E8F94FA8 /* GeoIP.swift in Sources */,
 				DB1085D0B97CF9BCA8BB76A4 /* HistoryStore.swift in Sources */,
@@ -574,6 +585,7 @@
 				E1E1E1E1E1E1E1E11540000 /* DiskWindowView.swift in Sources */,
 				E1E1E1E1E1E1E1E11530000 /* DiskWindowController.swift in Sources */,
 				E1E1E1E1E1E1E1E11570000 /* DiskAlertsPage.swift in Sources */,
+				E1E1E1E1E1E1E1E11590000 /* DiskHealthPage.swift in Sources */,
 				B2EF769E8FC000207D6D6B00 /* LinkHistoryModel.swift in Sources */,
 				A0A0A0A0A0A0A0A0A0000006 /* LinkExport.swift in Sources */,
 				A3C5D7E9F1B20468AC13E5F7 /* AppsRange.swift in Sources */,

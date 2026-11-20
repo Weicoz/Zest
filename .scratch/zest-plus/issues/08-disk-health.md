@@ -14,3 +14,9 @@
 - [ ] `VERIFY_TIER=full BASE=main Tools/verify.sh` 末行 `结论：通过`
 - [ ] 新增界面文字含 `zh-Hans` 与 `en`，`Tools/check_quick_tools.py` 通过
 - [ ] 启动 `build/Zest.app` 截图验收，写明未看画面
+
+## 偏差
+
+- 未实现 IOKit NVMe SMART 回退：本机 `diskutil info -plist disk0` 已含 `SMARTStatus` 与 `SMARTDeviceSpecificKeysMayVaryNotGuaranteed`（PERCENTAGE_USED、DATA_UNITS_WRITTEN_0、TEMPERATURE），IONVMeSMARTUserClient 需私有接口。字段缺失时界面显示「—」；回退留待有新系统缺字段的实例再做。
+- 固定读 `disk0`（Apple 芯片内置盘），未解析 `/` 所在物理盘；非 `Internal` 或无 SMARTStatus 一律「未提供」。
+- 温度由开尔文换算为摄氏；累计写入按 512000 字节/单位。
