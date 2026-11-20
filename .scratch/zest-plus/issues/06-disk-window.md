@@ -16,3 +16,14 @@
 - [ ] `VERIFY_TIER=full BASE=main Tools/verify.sh` 末行 `结论：通过`
 - [ ] 新增界面文字含 `zh-Hans` 与 `en`，`Tools/check_quick_tools.py` 通过
 - [ ] 启动 `build/Zest.app` 截图验收，写明未看画面
+
+## 偏差
+
+- 首次见到的新 PID：启动时间晚于上次采样时按全量计入，否则只作基线（票允许自定）。PID 复用一律按 0 起算。
+- 磁盘采样每次 tick（后台 10 秒、窗口可见 2 秒）直接写库，不按分钟攒批；分钟键取写入时刻。写失败增量放回待写，计入下一次。
+- 磁盘采样服务用独立的 HistoryStore 连接与队列；清除历史时 NetworkMonitor 经 `onHistoryCleared` 通知它丢弃待写并清磁盘表。
+- 磁盘采样随「网络监控」开关启停（与 NetworkMonitor 同步），未单设开关。
+- 已退出进程在两次采样之间的读写、`proc_pid_rusage` 无权读取的进程（如 root 进程）不计入。
+- 小时表 `disk_hours` 只建表、写入与 24 小时清理，本票无查询（供票 07）。
+- 窗口进程用普通标题栏窗口与分段页签，未复制网络窗口的侧边栏样式。
+- 未启动 `build/Zest.app` 截图，界面画面未看；未跑全检。

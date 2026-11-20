@@ -7584,6 +7584,150 @@
           }
         }
       }
+    },
+    "写入排行" : {
+      "comment" : "磁盘窗口页签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write ranking"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写入排行"
+          }
+        }
+      }
+    },
+    "写入提醒" : {
+      "comment" : "磁盘窗口页签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write alerts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写入提醒"
+          }
+        }
+      }
+    },
+    "健康" : {
+      "comment" : "磁盘窗口页签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "健康"
+          }
+        }
+      }
+    },
+    "即将推出" : {
+      "comment" : "磁盘窗口占位页",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coming soon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "即将推出"
+          }
+        }
+      }
+    },
+    "按写入" : {
+      "comment" : "磁盘排行排序",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By writes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按写入"
+          }
+        }
+      }
+    },
+    "按读取" : {
+      "comment" : "磁盘排行排序",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By reads"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按读取"
+          }
+        }
+      }
+    },
+    "暂无磁盘读写记录" : {
+      "comment" : "磁盘排行空状态",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No disk activity recorded yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无磁盘读写记录"
+          }
+        }
+      }
+    },
+    "打开磁盘窗口" : {
+      "comment" : "面板磁盘速度行提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Disk window"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开磁盘窗口"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

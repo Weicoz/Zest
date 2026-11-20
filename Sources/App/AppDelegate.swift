@@ -16,6 +16,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 独立的“网络监控”窗口进程。
     private var viewerProcess: Process?
     private var parentWatcher: DispatchSourceProcess?
+    /// 独立的“磁盘”窗口进程与主进程的磁盘采样服务。
+    private var diskProcess: Process?
+    private var diskWindow: DiskWindowController?
+    private let diskService = DiskIOService()
     private let processes = ProcessMonitor()
     private var statusItem: StatusItemController?
     private var settingsWindow: SettingsWindowController?
@@ -32,6 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 以 `--network-window` 启动时作为独立的“网络监控”窗口进程运行：
     /// 不创建菜单栏图标，窗口关闭即退出，从而把 SwiftUI / 图表占用的内存完整归还系统。
     static let isNetworkViewer = CommandLine.arguments.contains("--network-window")
+    /// 以 `--disk-window` 启动时作为独立的“磁盘”窗口进程运行（只读库，关窗即退出）。
+    static let isDiskViewer = CommandLine.arguments.contains("--disk-window")
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !AppDelegate.isRunningTests else { return }
@@ -42,6 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"])
         if AppDelegate.isNetworkViewer {
             launchAsNetworkViewer()
+            return
+        }
+        if AppDelegate.isDiskViewer {
+            launchAsDiskViewer()
             return
         }
         NSApp.setActivationPolicy(.accessory)
@@ -62,7 +72,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusItem = StatusItemController(store: store, settings: settings, network: network, processes: processes,
                                           openSettings: { [weak self] in self?.openSettings() },
-                                          openNetworkWindow: { [weak self] in self?.openNetworkWindow() }, tools: tools)
+                                          openNetworkWindow: { [weak self] in self?.openNetworkWindow() },
+                                          openDiskWindow: { [weak self] in self?.openDiskWindow() }, tools: tools)
         statusItem?.onPanelVisibilityChange = { [weak self] visible in
             guard let self else { return }
             if visible && UserDefaults.standard.string(forKey: "panelTab") != "processes" { engine.refreshCapacity() }
@@ -85,8 +96,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateSampleOptions()
         engine.start(interval: settings.refreshInterval)
         network.start()
+        diskService.start()
+        network.onHistoryCleared = { [diskService] in diskService.clear() }
         settings.$networkMonitoring.dropFirst().removeDuplicates().sink { [weak self] on in
             on ? self?.network.start() : self?.network.stop()
+            on ? self?.diskService.start() : self?.diskService.stop()
         }.store(in: &cancellables)
 
         #if PERFORMANCE_TEST
@@ -241,7 +255,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
         network.flushSync()
         network.stop()
+        diskService.flushSync()
         viewerProcess?.terminate()
+        diskProcess?.terminate()
         PerformanceLog.shared.event("stop")
         PerformanceLog.shared.flush()
     }
@@ -273,6 +289,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // 无法启动独立进程时退回到本进程内打开。
             presentNetworkWindowInProcess()
         }
+    }
+
+    /// 打开磁盘窗口：启动（或激活已在运行的）独立窗口进程，并把磁盘采样提到 2 秒。
+    private func openDiskWindow() {
+        if let running = diskProcess, running.isRunning {
+            NSRunningApplication(processIdentifier: running.processIdentifier)?.activate(options: [.activateAllWindows])
+            return
+        }
+        guard let executable = Bundle.main.executableURL else { return }
+        let task = Process()
+        task.executableURL = executable
+        task.arguments = ["--disk-window"]
+        task.terminationHandler = { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.diskProcess = nil
+                self?.diskService.setWindowVisible(false)
+            }
+        }
+        do {
+            try task.run()
+            diskProcess = task
+            diskService.setWindowVisible(true)
+        } catch {}
+    }
+
+    private func launchAsDiskViewer() {
+        NSApp.setActivationPolicy(.regular)
+        let controller = DiskWindowController(settings: settings)
+        controller.onClose = { NSApp.terminate(nil) }
+        diskWindow = controller
+        controller.present()
+        let parent = getppid()
+        let watcher = DispatchSource.makeProcessSource(identifier: parent, eventMask: .exit, queue: .main)
+        watcher.setEventHandler { NSApp.terminate(nil) }
+        watcher.resume()
+        parentWatcher = watcher
+        if parent == 1 { NSApp.terminate(nil) }
     }
 
     private func presentNetworkWindowInProcess() {
@@ -307,7 +360,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        AppDelegate.isNetworkViewer
+        AppDelegate.isNetworkViewer || AppDelegate.isDiskViewer
     }
 
     private func openSettings() {

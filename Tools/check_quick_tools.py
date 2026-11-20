@@ -49,7 +49,9 @@ def main():
              ROOT / "Sources/UI/NetworkWindow/DailyTotalsCards.swift",
              ROOT / "Sources/UI/NetworkWindow/LinkHistoryModel.swift",
              ROOT / "Sources/UI/NetworkWindow/LinkExport.swift",
-             ROOT / "Sources/UI/NetworkWindow/AppsRange.swift"]
+             ROOT / "Sources/UI/NetworkWindow/AppsRange.swift",
+             ROOT / "Sources/UI/NetworkWindow/DiskWindowView.swift",
+             ROOT / "Sources/UI/NetworkWindow/DiskWindowController.swift"]
     catalog = json.loads((ROOT / "Resources/Localizable.xcstrings").read_text())["strings"]
     for file in files:
         for raw in re.findall(r'L10n\.text\("((?:[^"\\]|\\.)*)"(?:\)|,\s*defaultValue:)', file.read_text()):

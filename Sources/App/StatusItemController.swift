@@ -17,6 +17,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private let processes: ProcessMonitor
     private let onOpenSettings: () -> Void
     private let onOpenNetworkWindow: () -> Void
+    private let onOpenDiskWindow: () -> Void
     private var tools: QuickToolsController?
     private var lastSegments: [MenuBarSegment]?
     private var lastImageHeight: CGFloat?
@@ -27,13 +28,14 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     var onPanelTabChange: ((PanelView.PanelTab) -> Void)?
 
     init(store: MonitorStore, settings: AppSettings, network: NetworkMonitor, processes: ProcessMonitor,
-         openSettings: @escaping () -> Void, openNetworkWindow: @escaping () -> Void, tools: QuickToolsController? = nil) {
+         openSettings: @escaping () -> Void, openNetworkWindow: @escaping () -> Void, openDiskWindow: @escaping () -> Void = {}, tools: QuickToolsController? = nil) {
         self.store = store
         self.settings = settings
         self.network = network
         self.processes = processes
         self.onOpenSettings = openSettings
         self.onOpenNetworkWindow = openNetworkWindow
+        self.onOpenDiskWindow = openDiskWindow
         self.tools = tools
         super.init()
 
@@ -138,6 +140,10 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
                   openNetworkWindow: { [weak self] in
                       self?.popover.performClose(nil)
                       self?.onOpenNetworkWindow()
+                  },
+                  openDiskWindow: { [weak self] in
+                      self?.popover.performClose(nil)
+                      self?.onOpenDiskWindow()
                   },
                   quit: { NSApp.terminate(nil) },
                   onTabChange: { [weak self] tab in

@@ -173,9 +173,13 @@ final class NetworkMonitor: ObservableObject {
         }
     }
 
+    /// 清除历史时通知磁盘采样服务（它有自己的写入队列）。
+    var onHistoryCleared: (() -> Void)?
+
     func clearHistory() {
         queue.async { [self] in
             store?.clearAll()
+            onHistoryCleared?()
             physical.discardPending()
             linkRecorder.discardPending()
             refreshHistory()

@@ -15,6 +15,7 @@ struct PanelView: View {
     var contentHeight: CGFloat?
     var openSettings: () -> Void
     var openNetworkWindow: () -> Void = {}
+    var openDiskWindow: () -> Void = {}
     var quit: () -> Void
     var onTabChange: (PanelTab) -> Void = { _ in }
     var tools: QuickToolsController? = nil
@@ -76,7 +77,7 @@ struct PanelView: View {
     }
 
     private var overview: some View {
-        OverviewContent(store: store, settings: settings, processes: processes) { tab = .processes }
+        OverviewContent(store: store, settings: settings, processes: processes, openDiskWindow: openDiskWindow) { tab = .processes }
     }
 
 }
@@ -129,6 +130,7 @@ struct OverviewContent: View {
     @ObservedObject var store: MonitorStore
     @ObservedObject var settings: AppSettings
     var processes: ProcessMonitor
+    var openDiskWindow: () -> Void = {}
     var showProcesses: () -> Void = {}
 
     var body: some View {
@@ -143,7 +145,7 @@ struct OverviewContent: View {
             }
             .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .top, spacing: 8) {
-                DiskCard(disk: s?.disk, read: store.diskReadHistory.elements, write: store.diskWriteHistory.elements)
+                DiskCard(disk: s?.disk, read: store.diskReadHistory.elements, write: store.diskWriteHistory.elements, open: openDiskWindow)
                 SensorsCard(sensors: s?.sensors, unit: settings.temperatureUnit)
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -363,6 +365,7 @@ private struct DiskCard: View {
     var disk: DiskReading?
     var read: [Double]
     var write: [Double]
+    var open: () -> Void = {}
 
     var body: some View {
         Card {
@@ -379,10 +382,16 @@ private struct DiskCard: View {
                     Unavailable(text: L10n.text("容量不可用"))
                 }
                 Divider().opacity(0.5)
-                StatRow(label: L10n.text("读取"), value: Fmt.rate(d.readRate), dot: Palette.disk)
-                StatRow(label: L10n.text("写入"), value: Fmt.rate(d.writeRate), dot: Palette.upload)
-                DualSparkline(primary: read, secondary: write, primaryColor: Palette.disk, secondaryColor: Palette.upload)
-                    .frame(height: 30)
+                // 磁盘速度行：点击打开磁盘窗口。
+                VStack(alignment: .leading, spacing: 6) {
+                    StatRow(label: L10n.text("读取"), value: Fmt.rate(d.readRate), dot: Palette.disk)
+                    StatRow(label: L10n.text("写入"), value: Fmt.rate(d.writeRate), dot: Palette.upload)
+                    DualSparkline(primary: read, secondary: write, primaryColor: Palette.disk, secondaryColor: Palette.upload)
+                        .frame(height: 30)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture(perform: open)
+                .help(L10n.text("打开磁盘窗口"))
             } else {
                 Unavailable(text: L10n.text("读取中…"))
             }
