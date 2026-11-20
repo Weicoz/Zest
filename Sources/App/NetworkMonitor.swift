@@ -62,6 +62,7 @@ final class NetworkMonitor: ObservableObject {
     private let performanceSampler = SelfUsageSampler()
     private let physicalSampler = NetworkSampler()
     private var physical = PhysicalAccumulator()
+    private lazy var linkRecorder = LinkRecorder(queue: queue)
     private var store: HistoryStore?
     private var storeOpened = false
     private let detector = AnomalyDetector()
@@ -168,6 +169,7 @@ final class NetworkMonitor: ObservableObject {
             let delta = physical.drain()
             if store?.addMinute(partial?.0 ?? NetworkMonitor.minute(), traffic: partial?.1 ?? [:], meta: partial?.2 ?? [:],
                                 physical: delta) == false { physical.restore(delta) }
+            linkRecorder.flush(store)
         }
     }
 
@@ -175,6 +177,7 @@ final class NetworkMonitor: ObservableObject {
         queue.async { [self] in
             store?.clearAll()
             physical.discardPending()
+            linkRecorder.discardPending()
             refreshHistory()
             DispatchQueue.main.async { self.appDay.removeAll() }
         }
@@ -218,6 +221,7 @@ final class NetworkMonitor: ObservableObject {
 
     private func tick() {
         guard enabled else { return }
+        if role == .primary { linkRecorder.poll(store: store) }
         let started = DispatchTime.now().uptimeNanoseconds
         defer {
             PerformanceLog.shared.timing("network_sample", since: started)

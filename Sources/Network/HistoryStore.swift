@@ -30,10 +30,10 @@ struct AppMeta: Equatable {
 
 final class HistoryStore {
     static let retentionMinutes = 24 * 60
-    private var db: OpaquePointer?
+    var db: OpaquePointer?
     let url: URL
 
-    private static let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+    static let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     static var defaultURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -67,7 +67,7 @@ final class HistoryStore {
             """)
         if !ok { return nil }
         // 查看器进程只读：不建表、不回填，由主进程首次打开时完成。
-        if migrate, !createDailyApps(calendar: calendar) { return nil }
+        if migrate, !createDailyApps(calendar: calendar) || !createLinkTables() { return nil }
     }
 
     /// 首次建 daily_apps 时，在同一事务里按本地日把现有分钟明细回填一次（旧库升级当天不少算）；表已存在则不回填。
@@ -113,20 +113,20 @@ final class HistoryStore {
     deinit { sqlite3_close(db) }
 
     @discardableResult
-    private func exec(_ sql: String) -> Bool {
+    func exec(_ sql: String) -> Bool {
         sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK
     }
 
-    private func prepare(_ sql: String) -> OpaquePointer? {
+    func prepare(_ sql: String) -> OpaquePointer? {
         var stmt: OpaquePointer?
         return sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK ? stmt : nil
     }
 
-    private func bind(_ stmt: OpaquePointer?, _ i: Int32, _ s: String?) {
+    func bind(_ stmt: OpaquePointer?, _ i: Int32, _ s: String?) {
         if let s { sqlite3_bind_text(stmt, i, s, -1, HistoryStore.transient) } else { sqlite3_bind_null(stmt, i) }
     }
 
-    private func text(_ stmt: OpaquePointer?, _ i: Int32) -> String? {
+    func text(_ stmt: OpaquePointer?, _ i: Int32) -> String? {
         sqlite3_column_text(stmt, i).map { String(cString: $0) }
     }
 
@@ -223,7 +223,8 @@ final class HistoryStore {
     }
 
     /// 删除 24 小时以前的数据。
-    func prune(nowMinute: Int, now: Date = Date()) {
+    func prune(nowMinute: Int, now: Date = Date(), calendar: Calendar = .current) {
+        pruneLinks(now: now, calendar: calendar)
         if let s = prepare("DELETE FROM traffic WHERE minute < ?") {
             sqlite3_bind_int64(s, 1, Int64(nowMinute - HistoryStore.retentionMinutes)); sqlite3_step(s); sqlite3_finalize(s)
         }
@@ -234,6 +235,7 @@ final class HistoryStore {
     }
 
     func clearAll() {
+        clearLinks()
         exec("DELETE FROM traffic; DELETE FROM apps; DELETE FROM alerts; DELETE FROM daily_physical; DELETE FROM daily_apps; VACUUM;")
     }
 

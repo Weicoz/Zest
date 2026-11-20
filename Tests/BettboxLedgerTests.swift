@@ -149,3 +149,40 @@ final class BettboxConfigTests: XCTestCase {
         XCTAssertEqual(failure("external-controller: 127.0.0.1.example.test:9090\n"), .nonLocal)
     }
 }
+
+final class BettboxLedgerDeltaTests: XCTestCase {
+    private var cal: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        return c
+    }()
+
+    private func date(_ d: Int, _ h: Int, _ m: Int, _ s: Int = 0) -> Date {
+        cal.date(from: DateComponents(year: 2026, month: 11, day: d, hour: h, minute: m, second: s))!
+    }
+
+    private func payload(down: Int64, up: Int64, conn: Int64) throws -> BettboxPayload {
+        let c = """
+        {"id":"a","download":\(conn),"upload":0,"chains":["node-a"],"rule":"RuleSet","rulePayload":"p1",
+         "metadata":{"type":"HTTPS","host":"h.example.test","destinationIP":"192.0.2.1","destinationPort":"443","process":"app1"}}
+        """
+        return try JSONDecoder().decode(BettboxPayload.self,
+            from: Data(#"{"downloadTotal":\#(down),"uploadTotal":\#(up),"connections":[\#(c)]}"#.utf8))
+    }
+
+    func testDeltaCrossesLocalMidnight() throws {
+        var l = TrafficLedger()
+        l.ingest(try payload(down: 0, up: 0, conn: 0), at: date(7, 23, 59, 58), calendar: cal)
+        let before = l.ingest(try payload(down: 150, up: 0, conn: 100), at: date(7, 23, 59, 59), calendar: cal)
+        let after = l.ingest(try payload(down: 400, up: 0, conn: 300), at: date(8, 0, 0, 1), calendar: cal)
+        let route = { (day: Int) in LedgerDelta.Route(day: day, rule: "RuleSet: p1", exit: "node-a", app: "app1") }
+        XCTAssertEqual(before.routes[route(20261107)], LedgerTraffic(down: 100, up: 0))
+        XCTAssertEqual(before.unattributed[20261107], LedgerTraffic(down: 50, up: 0))
+        XCTAssertNil(before.routes[route(20261108)])
+        XCTAssertEqual(after.routes[route(20261108)], LedgerTraffic(down: 200, up: 0))   // 本轮增量全记到采样时刻所在日
+        XCTAssertEqual(after.unattributed[20261108], LedgerTraffic(down: 50, up: 0))
+        XCTAssertNil(after.routes[route(20261107)])
+        XCTAssertEqual(after.hours[.init(hour: 2026110800, rule: "RuleSet: p1", exit: "node-a", app: "app1")]?.down, 200)
+        XCTAssertEqual(after.domains[.init(day: 20261108, host: "h.example.test", rule: "RuleSet: p1", exit: "node-a", app: "app1")]?.down, 200)
+    }
+}

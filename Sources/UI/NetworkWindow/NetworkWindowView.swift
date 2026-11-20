@@ -40,6 +40,7 @@ struct NetworkWindowView: View {
     @AppStorage("networkPage") private var page = NetworkPage.overview
     @State private var selectedApp: String?
     @StateObject private var liveLinks = LiveLinksService()
+    @StateObject private var linkHistory = LinkHistoryModel()
 
     var body: some View {
         HStack(spacing: 0) {
@@ -51,7 +52,7 @@ struct NetworkWindowView: View {
                 case .overview: NetworkOverviewPage(monitor: monitor, showApp: show(app:))
                 case .apps: NetworkAppsPage(monitor: monitor, settings: settings, selection: $selectedApp)
                 case .connections: NetworkConnectionsPage(monitor: monitor, settings: settings)
-                case .links: NetworkLiveLinksPage(service: liveLinks, settings: settings)
+                case .links: NetworkLiveLinksPage(service: liveLinks, history: linkHistory, settings: settings)
                 case .lan: NetworkLANPage(monitor: monitor)
                 case .topology: NetworkTopologyPage(monitor: monitor, showApp: show(app:))
                 case .alerts: NetworkAlertsPage(monitor: monitor, settings: settings)
@@ -62,7 +63,7 @@ struct NetworkWindowView: View {
         .background(Palette.panelBackground)
         .onChange(of: page) { p in if p == .alerts { monitor.markAlertsRead() } }
         .id(settings.appLanguage)
-        // 链路采样只在窗口进程运行；换页不中断，累计从窗口打开起算。
+        // 窗口进程自采实时链路与速率；累计、汇总与柱图从库只读。
         .onAppear { if monitor.role == .viewer { liveLinks.start() } }
         .onDisappear { liveLinks.stop() }
     }

@@ -127,7 +127,12 @@ struct TrafficLedger {
         links = []
     }
 
-    mutating func ingest(_ payload: BettboxPayload, at: Date) {
+    /// 返回本轮增量（按采样时刻所在本地日、小时归档），供主进程写库；窗口进程忽略返回值。
+    @discardableResult
+    mutating func ingest(_ payload: BettboxPayload, at: Date, calendar: Calendar = .current) -> LedgerDelta {
+        var delta = LedgerDelta()
+        let day = DayRange.key(of: at, calendar: calendar)
+        let hour = DayRange.hourKey(of: at, calendar: calendar)
         let baseline = lastTotals == nil
         let dt = lastAt.map { at.timeIntervalSince($0) } ?? 0
         var next: [String: (down: Int64, up: Int64)] = [:]
@@ -139,6 +144,12 @@ struct TrafficLedger {
             let d = baseline ? 0 : Self.delta(c.download, prev?.down)
             let u = baseline ? 0 : Self.delta(c.upload, prev?.up)
             sumDown += d; sumUp += u
+            if d > 0 || u > 0 {
+                delta.routes[.init(day: day, rule: c.ruleName, exit: c.exit, app: c.metadata.process), default: LedgerTraffic()].add(d, u)
+                delta.domains[.init(day: day, host: c.metadata.host, rule: c.ruleName, exit: c.exit, app: c.metadata.process),
+                              default: LedgerTraffic()].add(d, u)
+                delta.hours[.init(hour: hour, rule: c.ruleName, exit: c.exit, app: c.metadata.process), default: LedgerTraffic()].add(d, u)
+            }
             byRule[c.ruleName, default: LedgerTraffic()].add(d, u)
             byExit[c.exit, default: LedgerTraffic()].add(d, u)
             byApp[c.metadata.process, default: LedgerTraffic()].add(d, u)
@@ -151,11 +162,17 @@ struct TrafficLedger {
             // 自报总量变小：Bettbox 重启，本轮总量增量取逐连接增量之和，未归属记 0。
             let td = payload.downloadTotal >= last.down ? payload.downloadTotal - last.down : sumDown
             let tu = payload.uploadTotal >= last.up ? payload.uploadTotal - last.up : sumUp
-            unattributed.add(max(0, td - sumDown), max(0, tu - sumUp))
+            let ud = max(0, td - sumDown), uu = max(0, tu - sumUp)
+            unattributed.add(ud, uu)
+            if ud > 0 || uu > 0 {
+                delta.unattributed[day, default: LedgerTraffic()].add(ud, uu)
+                delta.unattributedHours[hour, default: LedgerTraffic()].add(ud, uu)
+            }
         }
         seen = next   // 已关闭连接随之清掉
         lastTotals = (payload.downloadTotal, payload.uploadTotal)
         lastAt = at
         links = rows
+        return delta
     }
 }

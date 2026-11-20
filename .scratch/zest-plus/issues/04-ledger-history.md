@@ -16,3 +16,15 @@
 - [ ] `VERIFY_TIER=full BASE=main Tools/verify.sh` 末行 `结论：通过`
 - [ ] 新增界面文字含 `zh-Hans` 与 `en`，`Tools/check_quick_tools.py` 通过
 - [ ] 启动 `build/Zest.app` 截图验收，写明未看画面
+
+## 偏差
+
+- 主进程链路采样：`LinkRecorder` 由 `NetworkMonitor.tick`（仅 `Role.primary`）每轮触发，节奏即 NetworkMonitor 的 interval；读不到配置不请求。上一轮请求未返回则跳过。每轮拿到快照即单事务写库，失败把增量放回待写；退出前 `flushSync` 同步写一次。
+- 窗口进程仍自采实时链路与速率（`LiveLinksService`，2 秒）；累计、汇总、柱图、域名列表改读库（`LinkHistoryModel`，只读，4 秒刷新，范围或规则变化立即刷新）。旧文案「本窗口打开以来」已从界面与 xcstrings 删除。
+- 未归属在库里用保留规则键 `LinkKey.unattributed`（控制字符前缀）存入日汇总与小时表；查询时单列，不进规则、出口、应用列表。选中规则后未归属显示 0。
+- 小时数据含未归属行，保证按小时柱图总量与日柱一致；小时键为日期小时 yyyyMMddHH，保留 24 小时，柱图固定最近 24 小时（含当前小时），与范围切换无关；按天柱图覆盖所选范围每个自然日。`shortcut:` 注释在 `HistoryStore+Links.swift`。
+- 域名列表只含 30 天内记录；范围超出 30 天的部分无域名数据（本月最长 31 天，影响至多 1 天）。
+- 域名记录的域名为空时按空串存，界面显示「—」。
+- `HistoryStore` 的 `db`、`exec`、`prepare`、`bind`、`text` 由 private 放宽为 internal，供扩展文件使用；`prune` 新增 `calendar` 参数（默认 `.current`）。查看器进程的 `prune`（既有行为）也会删链路过期行，与主进程规则一致。
+- 「清除历史」确认文案未改（既有文案已写「每日汇总」，链路表属日汇总）。
+- 未做：启动 `build/Zest.app` 截图、全检（主会话执行）。链路页布局未目视，窗口较矮时靠滚动。

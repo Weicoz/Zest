@@ -6801,24 +6801,6 @@
         }
       }
     },
-    "%lld 条当前链路 · 累计为本窗口打开以来" : {
-      "comment" : "链路页副标题，%lld 为当前链路数",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld live links · totals since this window opened"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld 条当前链路 · 累计为本窗口打开以来"
-          }
-        }
-      }
-    },
     "域名" : {
       "comment" : "链路页表头",
       "extractionState" : "manual",
@@ -7053,24 +7035,6 @@
         }
       }
     },
-    "累计从本窗口打开起计算，不保存。总量取 Bettbox 自报值，各行之和与总量的差额记为“未归属”。" : {
-      "comment" : "链路页脚注",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Totals count from when this window opened and are not saved. The total is the one Bettbox reports; the gap between it and the sum of all rows is shown as “Unattributed”."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "累计从本窗口打开起计算，不保存。总量取 Bettbox 自报值，各行之和与总量的差额记为“未归属”。"
-          }
-        }
-      }
-    },
     "正在连接 Bettbox…" : {
       "comment" : "链路页状态",
       "extractionState" : "manual",
@@ -7283,6 +7247,204 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "确认清除分钟明细、告警与每日汇总？"
+          }
+        }
+      }
+    },
+    "%lld 条当前链路" : {
+      "comment" : "链路页副标题，%lld 为当前链路数",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld live links"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 条当前链路"
+          }
+        }
+      }
+    },
+    "累计" : {
+      "comment" : "链路页：所选范围内的总量",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累计"
+          }
+        }
+      }
+    },
+    "下载" : {
+      "comment" : "链路页：下载字节",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载"
+          }
+        }
+      }
+    },
+    "上传" : {
+      "comment" : "链路页：上传字节",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上传"
+          }
+        }
+      }
+    },
+    "实时速率" : {
+      "comment" : "链路页：当前链路速率合计",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live rate"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "实时速率"
+          }
+        }
+      }
+    },
+    "按小时（最近 24 小时）" : {
+      "comment" : "链路页柱图标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By hour (last 24 hours)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按小时（最近 24 小时）"
+          }
+        }
+      }
+    },
+    "按天" : {
+      "comment" : "链路页柱图标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By day"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按天"
+          }
+        }
+      }
+    },
+    "按域名" : {
+      "comment" : "链路页：域名卡片标题",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By domain"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按域名"
+          }
+        }
+      }
+    },
+    "规则：%@" : {
+      "comment" : "链路页：已选中的规则，%@ 为规则名",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rule: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "规则：%@"
+          }
+        }
+      }
+    },
+    "显示全部规则" : {
+      "comment" : "链路页：取消规则选择",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show all rules"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示全部规则"
+          }
+        }
+      }
+    },
+    "点选一条规则，只统计该规则。域名记录保留 30 天，规则、出口、应用的日汇总永久保留。总量取 Bettbox 自报值，各行之和与总量的差额记为“未归属”。" : {
+      "comment" : "链路页脚注",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a rule to count only that rule. Domain records are kept for 30 days; daily totals by rule, exit and app are kept permanently. The total is the one Bettbox reports; the gap between it and the sum of all rows is shown as “Unattributed”."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点选一条规则，只统计该规则。域名记录保留 30 天，规则、出口、应用的日汇总永久保留。总量取 Bettbox 自报值，各行之和与总量的差额记为“未归属”。"
           }
         }
       }
