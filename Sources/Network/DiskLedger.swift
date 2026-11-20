@@ -81,6 +81,9 @@ struct DiskAccumulator {
         }
     }
 
+    /// 停止采样后调用：丢弃基线，重启后的第一次采样只作基线（停止期间的读写不计入）。待写增量保留，先 drain 写库。
+    mutating func resetBaseline() { previous = nil; previousTime = 0 }
+
     /// 清除历史后丢弃尚未写入的增量（保留基线）。
     mutating func discardPending() { merged = [:] }
 }

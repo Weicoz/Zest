@@ -18,12 +18,12 @@ final class DiskIOService: @unchecked Sendable {
     private var accumulator = DiskAccumulator()
     private var windowVisible = false
     private var pidBuffer = [pid_t](repeating: 0, count: 2048)
-    /// 同一 PID 的路径与名称不变，启动时间相同即可复用，免得每轮重复取路径。
+    /// 路径与名称按 (PID, 启动时间) 缓存，免得每轮重复取路径。
+    /// shortcut: 进程 exec 会改路径但 PID 与启动时间不变，缓存可能短暂沿用旧路径；若实测影响排行，改为每轮重取路径或按 TTL 失效。
     private var identity: [pid_t: (start: TimeInterval, path: String, name: String)] = [:]
 
     func start() {
         queue.async { [self] in
-            if store == nil { store = HistoryStore() }
             schedule()
         }
     }
@@ -32,6 +32,8 @@ final class DiskIOService: @unchecked Sendable {
         queue.async { [self] in
             timer?.cancel()
             timer = nil
+            flush()
+            accumulator.resetBaseline()
         }
     }
 
@@ -44,12 +46,9 @@ final class DiskIOService: @unchecked Sendable {
         }
     }
 
-    /// 清除历史：丢弃待写增量并清空磁盘表，与写库在同一队列上串行。
+    /// 清除历史：磁盘表已由 HistoryStore.clearAll 清空，这里只丢弃内存里待写的增量。
     func clear() {
-        queue.async { [self] in
-            accumulator.discardPending()
-            store?.clearDisk()
-        }
+        queue.async { [self] in accumulator.discardPending() }
     }
 
     /// 退出前同步写入待写增量。
@@ -68,6 +67,7 @@ final class DiskIOService: @unchecked Sendable {
     }
 
     private func tick() {
+        if store == nil { store = HistoryStore() }   // 打开失败时下一轮重试
         accumulator.ingest(snapshots(), at: Date())
         flush()
     }

@@ -53,10 +53,15 @@ extension HistoryStore {
         let hour = DayRange.hourKey(of: date, calendar: calendar)
         let day = DayRange.key(of: date, calendar: calendar)
         let upsert = " ON CONFLICT DO UPDATE SET bytes_read = bytes_read + excluded.bytes_read, bytes_written = bytes_written + excluded.bytes_written"
-        guard let m = prepare("INSERT INTO disk_minutes(minute, path, bytes_read, bytes_written) VALUES(?,?,?,?)" + upsert),
-              let h = prepare("INSERT INTO disk_hours(hour, path, bytes_read, bytes_written) VALUES(?,?,?,?)" + upsert),
-              let d = prepare("INSERT INTO disk_days(day, path, name, bytes_read, bytes_written) VALUES(?,?,?,?,?)"
-                              + upsert + ", name = excluded.name") else { exec("ROLLBACK"); return false }
+        let m = prepare("INSERT INTO disk_minutes(minute, path, bytes_read, bytes_written) VALUES(?,?,?,?)" + upsert)
+        let h = prepare("INSERT INTO disk_hours(hour, path, bytes_read, bytes_written) VALUES(?,?,?,?)" + upsert)
+        let d = prepare("INSERT INTO disk_days(day, path, name, bytes_read, bytes_written) VALUES(?,?,?,?,?)"
+                        + upsert + ", name = excluded.name")
+        guard let m, let h, let d else {
+            [m, h, d].forEach { sqlite3_finalize($0) }
+            exec("ROLLBACK")
+            return false
+        }
         var ok = true
         func run(_ s: OpaquePointer, _ key: Int, _ x: DiskDelta, name: Bool = false) {
             sqlite3_reset(s)

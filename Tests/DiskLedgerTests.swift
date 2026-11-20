@@ -70,6 +70,18 @@ final class DiskLedgerTests: XCTestCase {
         XCTAssertTrue(acc.drain().isEmpty)
     }
 
+    func testRestartAfterStopOnlyBaselines() {
+        var acc = DiskAccumulator()
+        acc.ingest([snap(1, written: 0)], at: t(1000))
+        acc.ingest([snap(1, written: 10)], at: t(1010))
+        acc.resetBaseline()   // 停止采样
+        // 重启后第一次采样：停止期间的写入与停止前的新进程都不计入。
+        acc.ingest([snap(1, written: 5_000), snap(2, "/bin/b", start: 1500, written: 700)], at: t(2000))
+        XCTAssertEqual(acc.drain().map(\.bytesWritten), [10])   // 只有停止前已 ingest 的待写增量
+        acc.ingest([snap(1, written: 5_030), snap(2, "/bin/b", start: 1500, written: 710)], at: t(2010))
+        XCTAssertEqual(acc.drain().map(\.bytesWritten), [30, 10])
+    }
+
     // MARK: 接缝 B
 
     private var url: URL!
