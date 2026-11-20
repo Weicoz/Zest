@@ -8340,6 +8340,60 @@
           }
         }
       }
+    },
+    "只能在菜单栏主进程导入，未导入任何数据。" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import is only available in the menu bar process. Nothing was imported."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只能在菜单栏主进程导入，未导入任何数据。"
+          }
+        }
+      }
+    },
+    "跳过 %@ 日期 %@：缺少该字段" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipped %@ date %@: field missing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过 %@ 日期 %@：缺少该字段"
+          }
+        }
+      }
+    },
+    "跳过 %@ 日期 %@ 中路径为空的记录" : {
+      "comment" : "流量喵导入",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skipped records with an empty path in %@ date %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过 %@ 日期 %@ 中路径为空的记录"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

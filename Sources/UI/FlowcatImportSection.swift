@@ -47,6 +47,7 @@ enum FlowcatImportText {
         case .directoryMissing: return L10n.text("找不到流量喵 Plus 的数据目录，未导入任何数据。")
         case .fileCorrupt(let file): return String(format: L10n.text("文件 %@ 已损坏，未导入任何数据，已有数据不变。"), file)
         case .writeFailed: return L10n.text("写入历史库失败，已整体回滚，已有数据不变。")
+        case .notPrimary: return L10n.text("只能在菜单栏主进程导入，未导入任何数据。")
         case .storeUnavailable: return L10n.text("历史库不可用，未导入任何数据。")
         }
     }
@@ -62,6 +63,10 @@ enum FlowcatImportText {
             switch s.reason {
             case .fileMissing:
                 lines.append(String(format: L10n.text("跳过 %@：找不到 %@"), name(s.category), s.category.fileName))
+            case .missingField:
+                lines.append(String(format: L10n.text("跳过 %@ 日期 %@：缺少该字段"), name(s.category), s.day))
+            case .emptyPath:
+                lines.append(String(format: L10n.text("跳过 %@ 日期 %@ 中路径为空的记录"), name(s.category), s.day))
             case .badDate:
                 lines.append(String(format: L10n.text("跳过 %@ 日期 %@：无法识别的日期"), name(s.category), s.day))
             }

@@ -97,6 +97,25 @@ final class FlowcatImportTests: XCTestCase {
         XCTAssertEqual(d.path, "/usr/bin/git"); XCTAssertEqual(d.bytesRead, 101); XCTAssertEqual(d.bytesWritten, 42)
     }
 
+    func testBundleNameIsDisplayNameAndEdgeRecordsSkipped() throws {
+        try write("ledger.json", """
+        {"processPaths":{"Zeta":"/Applications/Safari.app/Contents/MacOS/Zeta","Alpha":"/Applications/Safari.app/Contents/MacOS/Alpha"},
+         "days":{"2026-11-10":{"processes":{"Zeta":{"received":1,"sent":1},"Alpha":{"received":2,"sent":2}}},
+                 "2026-02-30":{"physical":{"received":1,"sent":1},"processes":{}}}}
+        """)
+        try write("disk-ledger.json", #"{"days":{"2026-11-10":{"processes":{"a":{"name":"x","path":"","bytes":{"read":5,"written":5}},"b":{"name":"git","path":"/usr/bin/git","bytes":{"read":1,"written":1}}}}}}"#)
+        store.addMinute(Int(Calendar.current.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 12))!.timeIntervalSince1970 / 60),
+                        traffic: [:], meta: [:], physical: InterfaceCounters(bytesIn: 77, bytesOut: 1))
+        let r = FlowcatImporter.run(directory: dir, store: store)
+        XCTAssertEqual(store.appMeta()["/Applications/Safari.app"]?.name, "Safari")
+        XCTAssertEqual(store.appTotals(range(20261110)).first?.bytesIn, 3)
+        XCTAssertEqual(store.physicalTotals(range(20261110)).bytesIn, 77)   // 缺 physical：不删不写
+        XCTAssertTrue(r.skipped.contains(.init(category: .physical, day: "2026-11-10", reason: .missingField)))
+        XCTAssertTrue(r.skipped.contains(.init(category: .physical, day: "2026-02-30", reason: .badDate)))
+        XCTAssertTrue(r.skipped.contains(.init(category: .disk, day: "2026-11-10", reason: .emptyPath)))
+        XCTAssertEqual(store.diskTotals(range(20261110)).map(\.path), ["/usr/bin/git"])
+    }
+
     func testRepeatedImportOverwritesAndKeepsOtherDays() throws {
         try writeAll()
         let day9 = Calendar.current.date(from: DateComponents(year: 2026, month: 11, day: 9, hour: 12))!

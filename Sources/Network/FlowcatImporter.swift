@@ -24,6 +24,10 @@ enum FlowcatCategory: String, CaseIterable {
 enum FlowcatSkipReason: Equatable {
     case fileMissing
     case badDate
+    /// 该日缺少对应字段（整机总量）。
+    case missingField
+    /// 磁盘记录没有可执行路径。
+    case emptyPath
 }
 
 enum FlowcatImportFailure: Error, Equatable {
@@ -31,6 +35,7 @@ enum FlowcatImportFailure: Error, Equatable {
     case fileCorrupt(String)
     case writeFailed
     case storeUnavailable
+    case notPrimary
 }
 
 struct FlowcatImportReport: Equatable {
@@ -99,7 +104,11 @@ enum FlowcatImporter {
     static func dayKey(_ s: String) -> Int? {
         let p = s.split(separator: "-", omittingEmptySubsequences: false)
         guard p.count == 3, p[0].count == 4, p[1].count == 2, p[2].count == 2,
-              let y = Int(p[0]), let m = Int(p[1]), let d = Int(p[2]), (1...12).contains(m), (1...31).contains(d) else { return nil }
+              let y = Int(p[0]), let m = Int(p[1]), let d = Int(p[2]) else { return nil }
+        // 用公历校验日期真实存在（如 2026-02-30 不存在）。
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
+        let c = DateComponents(calendar: cal, year: y, month: m, day: d)
+        guard c.isValidDate, let date = cal.date(from: c), cal.dateComponents([.year, .month, .day], from: date) == DateComponents(year: y, month: m, day: d) else { return nil }
         return y * 10_000 + m * 100 + d
     }
 
@@ -108,7 +117,8 @@ enum FlowcatImporter {
         let bundle = ProcessOwners.outermostApp(path: path)
         let kind = ProcessOwners.kind(bundlePath: bundle, executablePath: path)
         if let bundle {
-            return (bundle, AppMeta(key: bundle, name: name, bundlePath: bundle, kind: kind))
+            let display = (FileManager.default.displayName(atPath: bundle) as NSString).deletingPathExtension
+            return (bundle, AppMeta(key: bundle, name: display, bundlePath: bundle, kind: kind))
         }
         return (name, AppMeta(key: name, name: name, bundlePath: nil, kind: kind))
     }
@@ -141,9 +151,13 @@ enum FlowcatImporter {
                         for c in [FlowcatCategory.physical, .apps] { report.skipped.append(.init(category: c, day: k, reason: .badDate)) }
                         continue
                     }
-                    parsed.physical[day] = (clamp(d.physical?.received), clamp(d.physical?.sent))
+                    if let ph = d.physical {
+                        parsed.physical[day] = (clamp(ph.received), clamp(ph.sent))
+                    } else {
+                        report.skipped.append(.init(category: .physical, day: k, reason: .missingField))
+                    }
                     var apps: [String: Pair] = [:]
-                    for (name, b) in d.processes ?? [:] {
+                    for (name, b) in (d.processes ?? [:]).sorted(by: { $0.key < $1.key }) {
                         let (key, meta) = appKey(name: name, path: l.processPaths?[name])
                         parsed.meta[key] = parsed.meta[key] ?? meta
                         add(&apps[key, default: (0, 0)], clamp(b.received), clamp(b.sent))
@@ -169,12 +183,15 @@ enum FlowcatImporter {
                 for (k, d) in dl.days.sorted(by: { $0.key < $1.key }) {
                     guard let day = dayKey(k) else { report.skipped.append(.init(category: .disk, day: k, reason: .badDate)); continue }
                     var rows: [String: (name: String, io: Pair)] = [:]
-                    for p in (d.processes ?? [:]).values {
+                    var emptyPath = false
+                    for p in (d.processes ?? [:]).sorted(by: { $0.key < $1.key }).map(\.value) {
                         let path = p.path ?? ""
+                        if path.isEmpty { emptyPath = true; continue }
                         var e = rows[path] ?? (p.name ?? (path as NSString).lastPathComponent, (0, 0))
                         add(&e.io, clamp(p.bytes?.read), clamp(p.bytes?.written))
                         rows[path] = e
                     }
+                    if emptyPath { report.skipped.append(.init(category: .disk, day: k, reason: .emptyPath)) }
                     parsed.disk[day] = rows
                 }
             }

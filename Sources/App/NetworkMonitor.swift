@@ -195,7 +195,7 @@ final class NetworkMonitor: ObservableObject {
                 openStore()
                 report = FlowcatImporter.run(directory: directory, store: store)
                 refreshHistory()
-            } else { report.failure = .storeUnavailable }
+            } else { report.failure = .notPrimary }
             DispatchQueue.main.async { completion(report) }
         }
     }
