@@ -685,74 +685,74 @@
         }
       }
     },
-    "Zest 不会在后台读取任何网络数据。开启后可看到各应用占用的带宽、本次与 24 小时的流量。" : {
+    "Zest Plus 不会在后台读取任何网络数据。开启后可看到各应用占用的带宽、本次与 24 小时的流量。" : {
       "comment" : "网络监控关闭时的说明正文",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest doesn't read any network data in the background. Turn it on to see each app's bandwidth and traffic for this session and the past 24 hours."
+            "value" : "Zest Plus doesn't read any network data in the background. Turn it on to see each app's bandwidth and traffic for this session and the past 24 hours."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest 不会在后台读取任何网络数据。开启后可看到各应用占用的带宽、本次与 24 小时的流量。"
+            "value" : "Zest Plus 不会在后台读取任何网络数据。开启后可看到各应用占用的带宽、本次与 24 小时的流量。"
           }
         }
       }
     },
-    "Zest 系统监控" : {
+    "Zest Plus 系统监控" : {
       "comment" : "菜单栏图标的辅助功能标题",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest System Monitor"
+            "value" : "Zest Plus System Monitor"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest 系统监控"
+            "value" : "Zest Plus 系统监控"
           }
         }
       }
     },
-    "Zest 自身" : {
-      "comment" : "受保护的 Zest 进程禁用菜单项",
+    "Zest Plus 自身" : {
+      "comment" : "受保护的 Zest Plus 进程禁用菜单项",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest itself"
+            "value" : "Zest Plus itself"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest 自身"
+            "value" : "Zest Plus 自身"
           }
         }
       }
     },
-    "Zest 设置" : {
+    "Zest Plus 设置" : {
       "comment" : "设置窗口标题",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest Settings"
+            "value" : "Zest Plus Settings"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest 设置"
+            "value" : "Zest Plus 设置"
           }
         }
       }
@@ -883,20 +883,20 @@
         }
       }
     },
-    "macOS 会对未获得“本地网络”权限的应用隐藏局域网设备。请允许 Zest 访问本地网络；若之前拒绝过，可在系统设置中重新开启。" : {
-      "comment" : "局域网权限说明。保留品牌 Zest，以及 macOS 权限名 Local Network、System Settings。",
+    "macOS 会对未获得“本地网络”权限的应用隐藏局域网设备。请允许 Zest Plus 访问本地网络；若之前拒绝过，可在系统设置中重新开启。" : {
+      "comment" : "局域网权限说明。保留品牌 Zest Plus，以及 macOS 权限名 Local Network、System Settings。",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "macOS hides LAN devices from apps that do not have Local Network permission. Allow Zest to access the local network; if you previously denied access, turn it back on in System Settings."
+            "value" : "macOS hides LAN devices from apps that do not have Local Network permission. Allow Zest Plus to access the local network; if you previously denied access, turn it back on in System Settings."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "macOS 会对未获得“本地网络”权限的应用隐藏局域网设备。请允许 Zest 访问本地网络；若之前拒绝过，可在系统设置中重新开启。"
+            "value" : "macOS 会对未获得“本地网络”权限的应用隐藏局域网设备。请允许 Zest Plus 访问本地网络；若之前拒绝过，可在系统设置中重新开启。"
           }
         }
       }
@@ -1099,20 +1099,20 @@
         }
       }
     },
-    "“已持续”从 Zest 首次观察到该连接时开始计算；字节数为连接建立以来的累计值。" : {
+    "“已持续”从 Zest Plus 首次观察到该连接时开始计算；字节数为连接建立以来的累计值。" : {
       "comment" : "连接表底部说明。引号中的词与「已持续」列名对应。",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“Duration” starts when Zest first sees the connection. Byte counts are totals since the connection was established."
+            "value" : "“Duration” starts when Zest Plus first sees the connection. Byte counts are totals since the connection was established."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "“已持续”从 Zest 首次观察到该连接时开始计算；字节数为连接建立以来的累计值。"
+            "value" : "“已持续”从 Zest Plus 首次观察到该连接时开始计算；字节数为连接建立以来的累计值。"
           }
         }
       }
@@ -1459,20 +1459,20 @@
         }
       }
     },
-    "全部关闭时菜单栏只显示 Zest 图标。温度与风扇读取不到时显示 N/A。" : {
+    "全部关闭时菜单栏只显示 Zest Plus 图标。温度与风扇读取不到时显示 N/A。" : {
       "comment" : "菜单栏页显示项目列表的页脚说明",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "When all items are off, the menu bar shows only the Zest icon. Temperature and fan speed show N/A when unavailable."
+            "value" : "When all items are off, the menu bar shows only the Zest Plus icon. Temperature and fan speed show N/A when unavailable."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "全部关闭时菜单栏只显示 Zest 图标。温度与风扇读取不到时显示 N/A。"
+            "value" : "全部关闭时菜单栏只显示 Zest Plus 图标。温度与风扇读取不到时显示 N/A。"
           }
         }
       }
@@ -2467,20 +2467,20 @@
         }
       }
     },
-    "开启后会对远端 IP 发送反向 DNS（PTR）查询，以显示主机名。默认关闭：Zest 本身不发起任何网络请求。" : {
+    "开启后会对远端 IP 发送反向 DNS（PTR）查询，以显示主机名。默认关闭：Zest Plus 本身不发起任何网络请求。" : {
       "comment" : "网络页解析远端主机名开关下方的说明",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "When enabled, Zest sends reverse DNS (PTR) queries for remote IPs to show hostnames. Off by default: Zest itself makes no network requests."
+            "value" : "When enabled, Zest Plus sends reverse DNS (PTR) queries for remote IPs to show hostnames. Off by default: Zest Plus itself makes no network requests."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "开启后会对远端 IP 发送反向 DNS（PTR）查询，以显示主机名。默认关闭：Zest 本身不发起任何网络请求。"
+            "value" : "开启后会对远端 IP 发送反向 DNS（PTR）查询，以显示主机名。默认关闭：Zest Plus 本身不发起任何网络请求。"
           }
         }
       }
@@ -4249,20 +4249,20 @@
         }
       }
     },
-    "登录时启动 Zest" : {
+    "登录时启动 Zest Plus" : {
       "comment" : "通用页登录时启动开关",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Launch Zest at Login"
+            "value" : "Launch Zest Plus at Login"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "登录时启动 Zest"
+            "value" : "登录时启动 Zest Plus"
           }
         }
       }
@@ -5113,20 +5113,20 @@
         }
       }
     },
-    "退出 Zest" : {
+    "退出 Zest Plus" : {
       "comment" : "页脚电源按钮的帮助提示",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quit Zest"
+            "value" : "Quit Zest Plus"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "退出 Zest"
+            "value" : "退出 Zest Plus"
           }
         }
       }
@@ -5275,20 +5275,20 @@
         }
       }
     },
-    "需要在“系统设置 › 通用 › 登录项”中允许 Zest。" : {
+    "需要在“系统设置 › 通用 › 登录项”中允许 Zest Plus。" : {
       "comment" : "登录项需要用户批准时的提示",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow Zest in System Settings › General › Login Items."
+            "value" : "Allow Zest Plus in System Settings › General › Login Items."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "需要在“系统设置 › 通用 › 登录项”中允许 Zest。"
+            "value" : "需要在“系统设置 › 通用 › 登录项”中允许 Zest Plus。"
           }
         }
       }
@@ -6511,19 +6511,19 @@
         }
       }
     },
-    "请在系统设置 › 隐私与安全性 › 辅助功能中允许 Zest，然后再次点击此工具。" : {
+    "请在系统设置 › 隐私与安全性 › 辅助功能中允许 Zest Plus，然后再次点击此工具。" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请在系统设置 › 隐私与安全性 › 辅助功能中允许 Zest，然后再次点击此工具。"
+            "value" : "请在系统设置 › 隐私与安全性 › 辅助功能中允许 Zest Plus，然后再次点击此工具。"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow Zest under System Settings > Privacy & Security > Accessibility, then click this tool again."
+            "value" : "Allow Zest Plus under System Settings > Privacy & Security > Accessibility, then click this tool again."
           }
         }
       }
@@ -6613,19 +6613,19 @@
         }
       }
     },
-    "部分工具首次使用需要系统授权。临时模式到期或退出 Zest 后自动结束。" : {
+    "部分工具首次使用需要系统授权。临时模式到期或退出 Zest Plus 后自动结束。" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "部分工具首次使用需要系统授权。临时模式到期或退出 Zest 后自动结束。"
+            "value" : "部分工具首次使用需要系统授权。临时模式到期或退出 Zest Plus 后自动结束。"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some tools request permission on first use. Temporary modes end on timeout or when Zest quits."
+            "value" : "Some tools request permission on first use. Temporary modes end on timeout or when Zest Plus quits."
           }
         }
       }
@@ -6681,19 +6681,19 @@
         }
       }
     },
-    "阻止屏幕因闲置而关闭，计时结束或退出 Zest 后恢复。" : {
+    "阻止屏幕因闲置而关闭，计时结束或退出 Zest Plus 后恢复。" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "阻止屏幕因闲置而关闭，计时结束或退出 Zest 后恢复。"
+            "value" : "阻止屏幕因闲置而关闭，计时结束或退出 Zest Plus 后恢复。"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep the display awake until timeout or until Zest quits."
+            "value" : "Keep the display awake until timeout or until Zest Plus quits."
           }
         }
       }
@@ -6732,13 +6732,13 @@
         }
       }
     },
-    "需要管理员授权，临时关闭系统睡眠；关闭、到期或 Zest 退出后由独立守护进程恢复原设置。" : {
+    "需要管理员授权，临时关闭系统睡眠；关闭、到期或 Zest Plus 退出后由独立守护进程恢复原设置。" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "需要管理员授权，临时关闭系统睡眠；关闭、到期或 Zest 退出后由独立守护进程恢复原设置。"
+            "value" : "需要管理员授权，临时关闭系统睡眠；关闭、到期或 Zest Plus 退出后由独立守护进程恢复原设置。"
           }
         },
         "en" : {
@@ -6749,19 +6749,19 @@
         }
       }
     },
-    "需要管理员授权，同时切换电池和接通电源时的低电量模式；退出 Zest 后保留。" : {
+    "需要管理员授权，同时切换电池和接通电源时的低电量模式；退出 Zest Plus 后保留。" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "需要管理员授权，同时切换电池和接通电源时的低电量模式；退出 Zest 后保留。"
+            "value" : "需要管理员授权，同时切换电池和接通电源时的低电量模式；退出 Zest Plus 后保留。"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Toggle Low Power Mode for battery and AC power with administrator authorization. This setting remains after Zest quits."
+            "value" : "Toggle Low Power Mode for battery and AC power with administrator authorization. This setting remains after Zest Plus quits."
           }
         }
       }
@@ -7837,20 +7837,20 @@
         }
       }
     },
-    "某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest 发送通知。" : {
+    "某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest Plus 发送通知。" : {
       "comment" : "设置：写入提醒说明",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sends a system notification when a program writes more than the threshold to disk within a local clock hour or local day. Each tier alerts once per program per period. Set 0 to turn a tier off. Zest must be allowed to send notifications."
+            "value" : "Sends a system notification when a program writes more than the threshold to disk within a local clock hour or local day. Each tier alerts once per program per period. Set 0 to turn a tier off. Zest Plus must be allowed to send notifications."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest 发送通知。"
+            "value" : "某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest Plus 发送通知。"
           }
         }
       }

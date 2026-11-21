@@ -369,7 +369,7 @@ final class NetworkMonitor: ObservableObject {
 
     private func notify(_ alert: NetworkAlert) {
         let content = UNMutableNotificationContent()
-        content.title = "Zest · \(alert.kind.title)"
+        content.title = "Zest Plus · \(alert.kind.title)"
         content.body = alert.detail
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: alert.id.uuidString, content: content, trigger: nil))
     }

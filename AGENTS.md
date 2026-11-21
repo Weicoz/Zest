@@ -10,6 +10,6 @@
 - 快检：`VERIFY_TIER=quick BASE=main Tools/verify.sh`（快捷工具检查 + XCTest 单测）
 - 全检：`VERIFY_TIER=full BASE=main Tools/verify.sh`（快检 + `Tools/build_local.py` 本地构建）；阶段门与合并前各跑一次
 - 已知问题：Xcode 27 命令行 `xcodebuild test` 启动宿主报 `childPID > 0`，界面正常；`verify.sh` 经 AppleScript 让 Xcode 跑测试，会打开 Xcode
-- 目标环境：本机 `build/Zest.app`；与 `/Applications/Zest.app` 同 bundle ID，试用前由用户退出正式版
+- 目标环境：本机 `build/Zest Plus.app`；与 `/Applications/Zest Plus.app` 同 bundle ID，试用前由用户退出已安装版本
 - 高风险目录：`Sources/Network/HistoryStore.swift`（SQLite 格式，菜单栏与网络窗口两进程共用）；改动交独立审查
 - 禁改目录：`~/File/git/flowcat-plus`（只读参考）

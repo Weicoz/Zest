@@ -187,7 +187,7 @@ final class QuickToolsController: ObservableObject {
         closePanel()
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
-        message = L10n.text("请在系统设置 › 隐私与安全性 › 辅助功能中允许 Zest，然后再次点击此工具。")
+        message = L10n.text("请在系统设置 › 隐私与安全性 › 辅助功能中允许 Zest Plus，然后再次点击此工具。")
         return false
     }
 

@@ -24,13 +24,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest reads the system ARP table to list devices on the local network. It does not send scan or probe packets to the local network."
+            "value" : "Zest Plus reads the system ARP table to list devices on the local network. It does not send scan or probe packets to the local network."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest 读取系统 ARP 表，以列出局域网中的设备。不会向局域网发送扫描或探测包。"
+            "value" : "Zest Plus 读取系统 ARP 表，以列出局域网中的设备。不会向局域网发送扫描或探测包。"
           }
         }
       }
@@ -41,13 +41,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest 使用系统自动化切换外观、菜单栏显示以及按确认清空废纸篓。"
+            "value" : "Zest Plus 使用系统自动化切换外观、菜单栏显示以及按确认清空废纸篓。"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zest uses system automation to change appearance and menu bar visibility, and to empty the Trash after confirmation."
+            "value" : "Zest Plus uses system automation to change appearance and menu bar visibility, and to empty the Trash after confirmation."
           }
         }
       }

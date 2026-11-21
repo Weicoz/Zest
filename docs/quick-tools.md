@@ -7,7 +7,7 @@
 先从旧版 Zest 面板退出应用，再执行：
 
 ```sh
-open build/Zest.app
+open "build/Zest Plus.app"
 ```
 
 点击菜单栏 Zest → **工具**。这仍是菜单栏应用，没有常驻主窗口。验收时建议暂停其他管理相同系统开关或快捷键的工具。
@@ -63,6 +63,6 @@ python3 Tools/check_quick_tools.py
 python3 Tools/build_local.py
 ```
 
-可通过 `ZEST_MACOS_SDK` 指定另一个兼容 SDK。构建完成后生成 `build/Zest.app`，前一份应用保存在 `build/Zest-previous-*.app`。构建不自动退出正在使用的应用，也不自动启动新版本。
+可通过 `ZEST_MACOS_SDK` 指定另一个兼容 SDK。构建完成后生成 `build/Zest Plus.app`，前一份应用保存在 `build/Zest Plus-previous-*.app`。构建不自动退出正在使用的应用，也不自动启动新版本。
 
 正常 Xcode 构建保留原有 Sparkle 更新行为和项目版本号。命令行本地构建会写入 `ZestCustomBuild` 标志并停用官方更新，避免官方安装包覆盖本地改动；版本号读取项目设置。

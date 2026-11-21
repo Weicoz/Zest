@@ -53,7 +53,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
     /// 只有显示内容变化时才重新生成菜单栏图片。
     func update(snapshot: Snapshot?) {
-        statusItem.button?.setAccessibilityTitle(L10n.text("Zest 系统监控"))
+        statusItem.button?.setAccessibilityTitle(L10n.text("Zest Plus 系统监控"))
         let items = settings.enabledItems
         let segments = MenuBarContent.segments(for: items, snapshot: snapshot, unit: settings.temperatureUnit)
         guard let button = statusItem.button else { return }
@@ -69,12 +69,12 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         if let image = renderer.render(segments, height: height, scale: scale) {
             button.image = image
         } else {
-            let icon = NSImage(systemSymbolName: "gauge.with.dots.needle.33percent", accessibilityDescription: "Zest")
-                ?? NSImage(systemSymbolName: "speedometer", accessibilityDescription: "Zest")
+            let icon = NSImage(systemSymbolName: "gauge.with.dots.needle.33percent", accessibilityDescription: "Zest Plus")
+                ?? NSImage(systemSymbolName: "speedometer", accessibilityDescription: "Zest Plus")
             icon?.isTemplate = true
             button.image = icon
         }
-        button.toolTip = segments.isEmpty ? "Zest" : segments.map(\.accessibilityText).joined(separator: "\n")
+        button.toolTip = segments.isEmpty ? "Zest Plus" : segments.map(\.accessibilityText).joined(separator: "\n")
     }
 
     func forceRedraw(snapshot: Snapshot?) {

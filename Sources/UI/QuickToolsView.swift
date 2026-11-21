@@ -41,7 +41,7 @@ struct QuickToolsView: View {
                 Text(L10n.text("尚未启用工具，请在设置中选择。"))
                     .font(.system(size: 12)).foregroundStyle(.secondary).padding(.vertical, 24)
             }
-            Text(L10n.text("部分工具首次使用需要系统授权。临时模式到期或退出 Zest 后自动结束。"))
+            Text(L10n.text("部分工具首次使用需要系统授权。临时模式到期或退出 Zest Plus 后自动结束。"))
                 .font(.system(size: 10)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }

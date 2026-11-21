@@ -17,7 +17,7 @@ open Zest.xcodeproj
 ```bash
 python3 Tools/check_quick_tools.py
 python3 Tools/build_local.py
-open build/Zest.app
+open "build/Zest Plus.app"
 ```
 
 新增工具页支持 11 项快捷操作及启用、排序、全局快捷键设置。权限、恢复机制和手动验收说明见 [快捷工具说明](docs/quick-tools.md)。

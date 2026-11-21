@@ -19,13 +19,13 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.center()
         self.init(window: window)
         window.delegate = self
-        window.title = L10n.text("Zest 设置")
+        window.title = L10n.text("Zest Plus 设置")
         // L10n.use 在 appLanguage 的 didSet 里，而 $appLanguage 在 didSet 之前发出。
         languageCancellable = settings.$appLanguage
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.window?.title = L10n.text("Zest 设置")
+                self?.window?.title = L10n.text("Zest Plus 设置")
             }
     }
 

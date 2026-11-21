@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>zh-Hans</string>
 	<key>CFBundleDisplayName</key>
-	<string>Zest</string>
+	<string>Zest Plus</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIconName</key>
@@ -29,7 +29,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Zest 读取系统 ARP 表，以列出局域网中的设备。不会向局域网发送扫描或探测包。</string>
+	<string>Zest Plus 读取系统 ARP 表，以列出局域网中的设备。不会向局域网发送扫描或探测包。</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_services._dns-sd._udp</string>
@@ -46,6 +46,6 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Zest 使用系统自动化切换外观、菜单栏显示以及按确认清空废纸篓。</string>
+	<string>Zest Plus 使用系统自动化切换外观、菜单栏显示以及按确认清空废纸篓。</string>
 </dict>
 </plist>

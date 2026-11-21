@@ -16,7 +16,7 @@ final class ProcessActionMenu: NSObject {
         let menu = NSMenu()
         actions = []
         if app.isProtected {
-            let info = NSMenuItem(title: app.processes.contains { $0.pid == getpid() } ? L10n.text("Zest 自身") : L10n.text("系统关键进程，不提供结束操作"),
+            let info = NSMenuItem(title: app.processes.contains { $0.pid == getpid() } ? L10n.text("Zest Plus 自身") : L10n.text("系统关键进程，不提供结束操作"),
                                   action: nil, keyEquivalent: "")
             info.isEnabled = false
             menu.addItem(info)

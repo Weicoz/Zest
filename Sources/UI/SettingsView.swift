@@ -62,10 +62,10 @@ private struct GeneralSettings: View {
                 ForEach(TemperatureUnit.allCases) { Text($0.label).tag($0) }
             }
 
-            Toggle(L10n.text("登录时启动 Zest"), isOn: Binding(get: { settings.launchAtLogin },
+            Toggle(L10n.text("登录时启动 Zest Plus"), isOn: Binding(get: { settings.launchAtLogin },
                                                              set: { settings.launchAtLogin = $0 }))
             if settings.launchAtLoginRequiresApproval {
-                Text(L10n.text("需要在“系统设置 › 通用 › 登录项”中允许 Zest。")).font(.caption).foregroundStyle(.orange)
+                Text(L10n.text("需要在“系统设置 › 通用 › 登录项”中允许 Zest Plus。")).font(.caption).foregroundStyle(.orange)
             }
             if let error = settings.launchAtLoginError {
                 Text(String(format: L10n.text("无法修改登录项：%@"), error)).font(.caption).foregroundStyle(.red)
@@ -106,7 +106,7 @@ private struct MenuBarSettings: View {
             } header: {
                 Text(L10n.text("显示项目（拖动调整顺序）"))
             } footer: {
-                Text(L10n.text("全部关闭时菜单栏只显示 Zest 图标。温度与风扇读取不到时显示 N/A。"))
+                Text(L10n.text("全部关闭时菜单栏只显示 Zest Plus 图标。温度与风扇读取不到时显示 N/A。"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             Button(L10n.text("恢复默认")) { settings.menuBarEntries = AppSettings.defaultEntries }
@@ -129,7 +129,7 @@ private struct NetworkSettings: View {
             }
             Section {
                 Toggle(L10n.text("解析远端主机名"), isOn: $settings.resolveHostnames)
-                Text(L10n.text("开启后会对远端 IP 发送反向 DNS（PTR）查询，以显示主机名。默认关闭：Zest 本身不发起任何网络请求。"))
+                Text(L10n.text("开启后会对远端 IP 发送反向 DNS（PTR）查询，以显示主机名。默认关闭：Zest Plus 本身不发起任何网络请求。"))
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle(L10n.text("出现警告时发送系统通知"), isOn: Binding(get: { settings.alertNotifications }, set: { on in
                     if on {
@@ -148,7 +148,7 @@ private struct NetworkSettings: View {
                 Stepper(value: $settings.writeAlertDayGB, in: 0...100_000) {
                     Text("\(L10n.text("每天写入提醒阈值（GB）")): \(settings.writeAlertDayGB)")
                 }
-                Text(L10n.text("某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest 发送通知。"))
+                Text(L10n.text("某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest Plus 发送通知。"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let network {
@@ -191,7 +191,7 @@ private struct AboutView: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 64, height: 64)
-            Text("Zest").font(.title2.weight(.semibold))
+            Text("Zest Plus").font(.title2.weight(.semibold))
             Text(String(format: L10n.text("版本 %@"), Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""))
                 .foregroundStyle(.secondary)
             Text(L10n.text("轻量的 macOS 菜单栏系统监控工具。"))

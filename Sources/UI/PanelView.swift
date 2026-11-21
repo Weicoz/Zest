@@ -119,7 +119,7 @@ private struct PanelFooter: View {
             Button(action: openSettings) { Image(systemName: "gearshape") }
                 .help(Text(L10n.text("设置")))
             Button(action: quit) { Image(systemName: "power") }
-                .help(Text(L10n.text("退出 Zest")))
+                .help(Text(L10n.text("退出 Zest Plus")))
         }
         .buttonStyle(FooterButtonStyle())
         .padding(.horizontal, 2)

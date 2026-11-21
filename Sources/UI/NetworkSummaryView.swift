@@ -50,7 +50,7 @@ struct NetworkSummaryView: View {
     @ViewBuilder private var stoppedCard: some View {
         Card {
             CardHeader(symbol: "pause.circle", title: L10n.text("网络监控未开启"), tint: Palette.wired)
-            Text(L10n.text("Zest 不会在后台读取任何网络数据。开启后可看到各应用占用的带宽、本次与 24 小时的流量。"))
+            Text(L10n.text("Zest Plus 不会在后台读取任何网络数据。开启后可看到各应用占用的带宽、本次与 24 小时的流量。"))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

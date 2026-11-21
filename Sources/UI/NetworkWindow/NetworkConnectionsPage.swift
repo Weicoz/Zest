@@ -109,7 +109,7 @@ struct NetworkConnectionsPage: View {
                 .width(58)
             }
             .font(.system(size: 11.5))
-            Text(L10n.text("“已持续”从 Zest 首次观察到该连接时开始计算；字节数为连接建立以来的累计值。"))
+            Text(L10n.text("“已持续”从 Zest Plus 首次观察到该连接时开始计算；字节数为连接建立以来的累计值。"))
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
         }
         .padding(20)
@@ -145,7 +145,7 @@ struct NetworkLANPage: View {
                 Card {
                     Label(monitor.lanAccess == .denied ? L10n.text("没有读取到局域网设备") : L10n.text("正在读取局域网设备…"),
                           systemImage: "wifi.router").font(.system(size: 13, weight: .semibold))
-                    Text(L10n.text("macOS 会对未获得“本地网络”权限的应用隐藏局域网设备。请允许 Zest 访问本地网络；若之前拒绝过，可在系统设置中重新开启。"))
+                    Text(L10n.text("macOS 会对未获得“本地网络”权限的应用隐藏局域网设备。请允许 Zest Plus 访问本地网络；若之前拒绝过，可在系统设置中重新开启。"))
                         .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     HStack {
                         Button(L10n.text("请求本地网络权限")) { monitor.requestLANAccess() }

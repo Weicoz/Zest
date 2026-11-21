@@ -43,15 +43,15 @@ enum QuickTool: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .darkMode: return L10n.text("切换系统深浅色；首次使用需要允许自动化控制 System Events。")
         case .lockScreen: return L10n.text("立即锁定 Mac；需要辅助功能权限。")
-        case .keepAwake: return L10n.text("阻止屏幕因闲置而关闭，计时结束或退出 Zest 后恢复。")
+        case .keepAwake: return L10n.text("阻止屏幕因闲置而关闭，计时结束或退出 Zest Plus 后恢复。")
         case .screenSaver: return L10n.text("立即启动系统屏幕保护程序。")
         case .cleanScreen: return L10n.text("全屏黑色背景方便清洁；按 Esc 或点击退出。")
         case .cleanKeyboard: return L10n.text("暂时屏蔽普通键盘输入；点击退出或等待倒计时恢复。电源键和 Touch ID 不受控制。")
         case .hideMenuBar: return L10n.text("切换系统菜单栏自动隐藏；需要自动化权限。")
         case .emptyTrash: return L10n.text("清空 Finder 废纸篓；执行前需要确认，清空后无法撤销。")
-        case .clamshell: return L10n.text("需要管理员授权，临时关闭系统睡眠；关闭、到期或 Zest 退出后由独立守护进程恢复原设置。")
+        case .clamshell: return L10n.text("需要管理员授权，临时关闭系统睡眠；关闭、到期或 Zest Plus 退出后由独立守护进程恢复原设置。")
         case .lockDock: return L10n.text("阻止鼠标在其他屏幕边缘唤出 Dock。需要辅助功能权限，会避开这些边缘的 4 个点；可随时关闭。")
-        case .lowPower: return L10n.text("需要管理员授权，同时切换电池和接通电源时的低电量模式；退出 Zest 后保留。")
+        case .lowPower: return L10n.text("需要管理员授权，同时切换电池和接通电源时的低电量模式；退出 Zest Plus 后保留。")
         }
     }
 

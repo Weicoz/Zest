@@ -92,7 +92,7 @@ final class DiskIOService: @unchecked Sendable {
 
     private func notify(_ a: WriteAlertRecord) {
         let content = UNMutableNotificationContent()
-        content.title = "Zest · \(L10n.text("写入提醒"))"
+        content.title = "Zest Plus · \(L10n.text("写入提醒"))"
         content.body = String(format: L10n.text(a.tier == .hour ? "%1$@ 本小时已写入 %2$@" : "%1$@ 今日已写入 %2$@"),
                               a.name, Fmt.bytes(Double(a.bytesWritten)))
         let center = UNUserNotificationCenter.current()

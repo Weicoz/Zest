@@ -46,7 +46,7 @@ def main():
         run("ditto", "-x", "-k", archive, unpacked)
     framework = next(unpacked.rglob("macos-arm64_x86_64/Sparkle.framework"))
 
-    app = BUILD / "Zest-next.app"
+    app = BUILD / "Zest Plus-next.app"
     if app.exists():
         shutil.rmtree(app)
     contents = app / "Contents"
@@ -56,7 +56,7 @@ def main():
     run("ditto", framework, contents / "Frameworks/Sparkle.framework")
     # Remove XML comments before parsing: the original contains '--account' in a comment.
     info = plistlib.loads(re.sub(rb"<!--.*?-->", b"", (ROOT / "Resources/Info.plist").read_bytes(), flags=re.S))
-    variables = {"EXECUTABLE_NAME": "Zest", "PRODUCT_BUNDLE_IDENTIFIER": "app.zest.monitor", "PRODUCT_NAME": "Zest",
+    variables = {"EXECUTABLE_NAME": "Zest", "PRODUCT_BUNDLE_IDENTIFIER": "app.zest.monitor", "PRODUCT_NAME": "Zest Plus",
                  "MARKETING_VERSION": re.search(r"MARKETING_VERSION = ([^;]+);", (ROOT / "Zest.xcodeproj/project.pbxproj").read_text()).group(1).strip('"'),
                  "CURRENT_PROJECT_VERSION": re.search(r"CURRENT_PROJECT_VERSION = ([^;]+);", (ROOT / "Zest.xcodeproj/project.pbxproj").read_text()).group(1).strip('"'), "MACOSX_DEPLOYMENT_TARGET": "13.0"}
     for key, value in info.items():
@@ -107,9 +107,9 @@ def main():
         "-o", contents / "MacOS/Zest")
     run("codesign", "--force", "--sign", "-", "--options", "runtime", "--entitlements", "Resources/Zest.entitlements", app)
     run("codesign", "--verify", "--deep", "--strict", app)
-    destination = BUILD / "Zest.app"
+    destination = BUILD / "Zest Plus.app"
     if destination.exists():
-        destination.rename(BUILD / ("Zest-previous-" + str(time.time_ns()) + ".app"))
+        destination.rename(BUILD / ("Zest Plus-previous-" + str(time.time_ns()) + ".app"))
     app.rename(destination)
     print("Built and verified: " + str(destination))
 
