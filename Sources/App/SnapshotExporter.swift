@@ -103,15 +103,41 @@ enum SnapshotExporter {
     }
 
     /// 截取真实窗口（含标题栏与侧边栏）的各个页面。
-    static func captureWindows(to dir: URL, page controller: NSWindowController?) {
-        guard let window = controller?.window, let frameView = window.contentView?.superview else { return }
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        for page in NetworkPage.allCases {
-            UserDefaults.standard.set(page.rawValue, forKey: "networkPage")
-            RunLoop.main.run(until: Date().addingTimeInterval(0.6))
-            write(frameView, to: dir.appendingPathComponent("window-\(page.rawValue).png"))
+    static func captureWindows(to dir: URL, page controller: NSWindowController?, done: @escaping () -> Void) {
+        capture(controller, key: "networkPage", pages: NetworkPage.allCases.map(\.rawValue), prefix: "window", to: dir) {
+            UserDefaults.standard.set(NetworkPage.overview.rawValue, forKey: "networkPage"); done()
         }
-        UserDefaults.standard.set(NetworkPage.overview.rawValue, forKey: "networkPage")
+    }
+
+    static func captureDiskWindow(to dir: URL, page controller: NSWindowController?, done: @escaping () -> Void) {
+        capture(controller, key: "diskPage", pages: DiskPage.allCases.map(\.rawValue), prefix: "disk", to: dir) {
+            UserDefaults.standard.set(DiskPage.ranking.rawValue, forKey: "diskPage"); done()
+        }
+    }
+
+    /// 截本进程自己的窗口：截自己的窗口不需要屏幕录制权限；cacheDisplay 抓不到含滚动视图或图表的页面。
+    private static func capture(_ controller: NSWindowController?, key: String, pages: [String], prefix: String, to dir: URL,
+                                done: @escaping () -> Void) {
+        guard let window = controller?.window else { return done() }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // CGWindowListCreateImage 在新 SDK 里对 Swift 不可见，按符号取用（仅 Debug）。
+        typealias Create = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+        guard let sym = dlsym(dlopen(nil, RTLD_NOW), "CGWindowListCreateImage") else { return done() }
+        let create = unsafeBitCast(sym, to: Create.self)
+        // 逐页用 asyncAfter 排队：在主队列 block 里跑 RunLoop 会挡住其他主队列任务，异步加载的数据到不了界面。
+        func shoot(_ i: Int) {
+            guard i < pages.count else { done(); return }
+            UserDefaults.standard.set(pages[i], forKey: key)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                // 1<<3 = optionIncludingWindow；1<<0 | 1<<3 = boundsIgnoreFraming | bestResolution
+                if let image = create(.null, 1 << 3, UInt32(window.windowNumber), 1 << 0 | 1 << 3)?.takeRetainedValue() {
+                    try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?
+                        .write(to: dir.appendingPathComponent("\(prefix)-\(pages[i]).png"))
+                }
+                shoot(i + 1)
+            }
+        }
+        shoot(0)
     }
 
     /// `scale` 是点到像素的倍数。面板在网页上会放大显示，2 倍图会发糊，截图用 4 倍。

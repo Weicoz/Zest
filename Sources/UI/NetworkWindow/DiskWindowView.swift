@@ -65,7 +65,7 @@ final class DiskHistoryModel: ObservableObject {
 
 struct DiskWindowView: View {
     @ObservedObject var settings: AppSettings
-    @State private var page = DiskPage.ranking
+    @AppStorage("diskPage") private var page = DiskPage.ranking
 
     var body: some View {
         VStack(spacing: 12) {

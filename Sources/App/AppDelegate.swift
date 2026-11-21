@@ -156,8 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let dir = ProcessInfo.processInfo.environment["ZEST_DEBUG_NETWORK_WINDOW"] {
             presentNetworkWindowInProcess()
             DispatchQueue.main.asyncAfter(deadline: .now() + 14) { [self] in
-                SnapshotExporter.captureWindows(to: URL(fileURLWithPath: dir), page: networkWindow)
-                NSApp.terminate(nil)
+                SnapshotExporter.captureWindows(to: URL(fileURLWithPath: dir), page: networkWindow) { NSApp.terminate(nil) }
             }
         }
         if let dir = SnapshotExporter.outputDirectory {
@@ -329,7 +328,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         watcher.setEventHandler { NSApp.terminate(nil) }
         watcher.resume()
         parentWatcher = watcher
-        if parent == 1 { NSApp.terminate(nil) }
+        if parent == 1 && ProcessInfo.processInfo.environment["ZEST_DEBUG_DISK_WINDOW"] == nil { NSApp.terminate(nil) }
+        #if DEBUG
+        if let dir = ProcessInfo.processInfo.environment["ZEST_DEBUG_DISK_WINDOW"] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 14) { [self] in
+                SnapshotExporter.captureDiskWindow(to: URL(fileURLWithPath: dir), page: diskWindow) { NSApp.terminate(nil) }
+            }
+        }
+        #endif
     }
 
     private func presentNetworkWindowInProcess() {
@@ -356,8 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         if let dir = ProcessInfo.processInfo.environment["ZEST_DEBUG_NETWORK_WINDOW"] {
             DispatchQueue.main.asyncAfter(deadline: .now() + 14) { [self] in
-                SnapshotExporter.captureWindows(to: URL(fileURLWithPath: dir), page: networkWindow)
-                NSApp.terminate(nil)
+                SnapshotExporter.captureWindows(to: URL(fileURLWithPath: dir), page: networkWindow) { NSApp.terminate(nil) }
             }
         }
         #endif
