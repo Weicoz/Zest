@@ -110,7 +110,7 @@ final class NetworkMonitor: ObservableObject {
         guard !storeOpened else { return }
         storeOpened = true
         store = HistoryStore(migrate: role == .primary)
-        guard let store else { return }
+        guard let store else { storeOpened = false; return }   // 打开失败下一轮 tick 重试
         let now = NetworkMonitor.minute()
         store.prune(nowMinute: now)
         tracker.preload(perApp: store.appMinutes(sinceMinute: now - NetworkTracker.minuteCapacity), nowMinute: now)
@@ -238,6 +238,7 @@ final class NetworkMonitor: ObservableObject {
 
     private func tick() {
         guard enabled else { return }
+        if role == .primary, store == nil { openStore() }
         if role == .primary { linkRecorder.poll(store: store) }
         let started = DispatchTime.now().uptimeNanoseconds
         defer {

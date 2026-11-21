@@ -75,13 +75,10 @@ final class HistoryStore {
 
     /// 首次建 daily_apps 时，在同一事务里按本地日把现有分钟明细回填一次（旧库升级当天不少算）；表已存在则不回填。
     private func createDailyApps(calendar: Calendar) -> Bool {
-        var exists = false
-        if let s = prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='daily_apps'") {
-            exists = sqlite3_step(s) == SQLITE_ROW
-            sqlite3_finalize(s)
-        }
-        guard !exists else { return true }
+        if dailyAppsExists() { return true }
         guard exec("BEGIN IMMEDIATE") else { return false }
+        // 同进程另一连接（如磁盘采样）可能已抢先建表回填：拿到写锁后再查一次，避免重复回填触发主键冲突。
+        if dailyAppsExists() { exec("ROLLBACK"); return true }
         var ok = exec("""
             CREATE TABLE IF NOT EXISTS daily_apps(
                 day INTEGER NOT NULL, app_key TEXT NOT NULL,
@@ -111,6 +108,12 @@ final class HistoryStore {
         if ok, exec("COMMIT") { return true }
         exec("ROLLBACK")
         return false
+    }
+
+    private func dailyAppsExists() -> Bool {
+        guard let s = prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='daily_apps'") else { return false }
+        defer { sqlite3_finalize(s) }
+        return sqlite3_step(s) == SQLITE_ROW
     }
 
     deinit { sqlite3_close(db) }

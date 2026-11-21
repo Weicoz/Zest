@@ -232,4 +232,28 @@ extension DailyTotalsTests {
         XCTAssertEqual(appTotals(again, .today, now: now), ["A": 45])
         XCTAssertEqual(again.appTotals(TotalsRange.today.dayRange(now: now, calendar: cal)).first?.name, "Alpha")
     }
+
+    /// 主进程的网络与磁盘两个连接同时迁移旧库：都必须打开成功，回填只做一次。
+    func testConcurrentUpgradeOpensBothStores() throws {
+        let m = minute(date(2026, 11, 7, 9))
+        for i in 0..<20 {
+            let u = url.deletingLastPathComponent().appendingPathComponent("race-\(UUID().uuidString).sqlite")
+            defer { for s in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: u.path + s) } }
+            var raw: OpaquePointer?
+            XCTAssertEqual(sqlite3_open(u.path, &raw), SQLITE_OK)
+            XCTAssertEqual(sqlite3_exec(raw, """
+                PRAGMA journal_mode=WAL;
+                CREATE TABLE traffic(minute INTEGER NOT NULL, app_key TEXT NOT NULL, bytes_in INTEGER NOT NULL,
+                    bytes_out INTEGER NOT NULL, PRIMARY KEY(minute, app_key)) WITHOUT ROWID;
+                INSERT INTO traffic VALUES(\(m), 'A', 40, 2);
+                """, nil, nil, nil), SQLITE_OK)
+            sqlite3_close(raw)
+            let opened = UnsafeMutablePointer<Bool>.allocate(capacity: 2)
+            defer { opened.deallocate() }
+            DispatchQueue.concurrentPerform(iterations: 2) { k in opened[k] = HistoryStore(url: u, calendar: cal) != nil }
+            XCTAssertTrue(opened[0] && opened[1], "round \(i)")
+            let store = try XCTUnwrap(HistoryStore(url: u, calendar: cal))
+            XCTAssertEqual(appTotals(store, .today, now: date(2026, 11, 7, 20)), ["A": 42])
+        }
+    }
 }
