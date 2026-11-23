@@ -378,5 +378,45 @@ final class ProxyClientSourceTests: XCTestCase {
         XCTAssertEqual(client?.groupOrder, ["🚀 节点选择", "Auto"])
         XCTAssertEqual(client?.sourceId, "bettbox")
     }
+
+    func testGroupOrderHandlesColumnZeroCommentsAndCRLF() {
+        // 第 0 列注释不能提前截断 proxy-groups；CRLF 换行不能把 `\r` 留在组名里。
+        let text = "proxy-groups:\r\n"
+            + "  - name: 组一\r\n"
+            + "# 这里只是注释，仍在 proxy-groups 内\r\n"
+            + "  - name: 组二\r\n"
+            + "proxies:\r\n"
+            + "  - name: 不是组\r\n"
+        XCTAssertEqual(BettboxClient.groupOrder(inConfig: text), ["组一", "组二"])
+
+        // 顶层 `# 注释` 与空行也不影响后续块解析。
+        let withLeadingComment = "# 头部注释\r\n\r\nproxy-groups:\r\n  - name: A\r\n"
+        XCTAssertEqual(BettboxClient.groupOrder(inConfig: withLeadingComment), ["A"])
+    }
+
+    func testAutoDisplayNameFallsBackToGenericNameWhenNothingResolves() {
+        // 空 home 下 auto 解析不到任何客户端，界面文案给通用名称而不是「自动检测」。
+        XCTAssertEqual(BettboxClient.resolvedDisplayName(source: .auto, customPath: "", home: home),
+                       "Clash / Bettbox")
+        XCTAssertEqual(BettboxClient.resolvedDisplayName(source: .custom, customPath: ""),
+                       ProxyClientSource.custom.localizedDisplayName)
+        XCTAssertFalse(BettboxClient.resolvedDisplayName(source: .custom, customPath: "").isEmpty)
+    }
+
+    func testResolveRefreshesWhenConfigSignatureChanges() {
+        let config = write("custom/reload.yaml", "external-controller: 127.0.0.1:9090\nsecret: a\n")
+        guard case .success(let first) = BettboxClient.resolve(source: .custom, customPath: config.path) else {
+            return XCTFail("first resolve should succeed")
+        }
+        XCTAssertTrue(first.text.contains("9090"))
+
+        // 文件签名（mtime/inode/size）变化后必须重新读盘，不能返回旧快照。
+        try? "external-controller: 127.0.0.1:9091\nsecret: bb\n".write(to: config, atomically: true, encoding: .utf8)
+        guard case .success(let second) = BettboxClient.resolve(source: .custom, customPath: config.path) else {
+            return XCTFail("second resolve should succeed")
+        }
+        XCTAssertTrue(second.text.contains("9091"))
+        XCTAssertFalse(second.text.contains("9090"))
+    }
 }
 

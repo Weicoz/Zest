@@ -39,10 +39,13 @@ final class LiveLinksService: ObservableObject {
     }
 
     private func tick(_ gen: Int) async {
-        let client: BettboxClient
         let source = AppSettings.currentProxySource()
         let customPath = AppSettings.currentProxyCustomPath()
-        switch BettboxClient.load(source: source, customPath: customPath) {
+        // 读配置并解析是磁盘 IO，放到后台串行队列，避免阻塞主线程（@MainActor）。
+        let loaded = await loadClient(source: source, customPath: customPath)
+        guard gen == generation else { return }
+        let client: BettboxClient
+        switch loaded {
         case .success(let c): client = c
         case .failure(.missing): return fail(.configMissing, gen)
         case .failure(.nonLocal): return fail(.nonLocalController, gen)
@@ -59,6 +62,17 @@ final class LiveLinksService: ObservableObject {
         case .nonLocalController: fail(.nonLocalController, gen)
         case .authFailed: fail(.authFailed, gen)
         case .decodeFailed: fail(.decodeFailed, gen)
+        }
+    }
+
+    private static let loadQueue = DispatchQueue(label: "app.zest.livelinks.config", qos: .utility)
+
+    private func loadClient(source: ProxyClientSource,
+                            customPath: String) async -> Result<BettboxClient, BettboxConfigError> {
+        await withCheckedContinuation { continuation in
+            Self.loadQueue.async {
+                continuation.resume(returning: BettboxClient.load(source: source, customPath: customPath))
+            }
         }
     }
 

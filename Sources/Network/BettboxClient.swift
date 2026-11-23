@@ -331,22 +331,62 @@ struct BettboxClient {
     }
 
     /// 解析来源到具体配置文件；`custom` 只认用户给定路径，`auto` 按运行状态/可达性/最近修改挑选。
-    static func resolve(source: ProxyClientSource,
-                        customPath: String = "") -> Result<ResolvedProxyConfig, BettboxConfigError> {
-        let home = FileManager.default.homeDirectoryForCurrentUser
+    /// 解析后的配置快照：原文 + 策略组顺序。按 `(path, fileSignature)` 缓存，
+    /// 稳态下 `resolve()` / `configFingerprint()` 只做 `stat()`，不再读盘与重跑解析。
+    struct ProxyConfigSnapshot {
+        let text: String
+        let groupOrder: [String]
+    }
 
-        func resolved(_ candidate: ProxyConfigCandidate) -> Result<ResolvedProxyConfig, BettboxConfigError> {
-            guard let text = try? String(contentsOf: candidate.configURL, encoding: .utf8) else {
-                return .failure(.missing)
+    private static let configSnapshotLock = NSLock()
+    private static var configSnapshotCache: [String: (sig: String, result: Result<ProxyConfigSnapshot, BettboxConfigError>)] = [:]
+
+    /// 读取并校验配置；命中签名缓存时零读盘。`secret` 随原文只在内存中，不落任何持久化。
+    static func snapshot(for candidate: ProxyConfigCandidate) -> Result<ProxyConfigSnapshot, BettboxConfigError> {
+        let sig = fileSignature(candidate.configURL)
+        guard sig != "-" else { return .failure(.missing) }
+        let key = candidate.configURL.path
+        configSnapshotLock.lock()
+        if let cached = configSnapshotCache[key], cached.sig == sig {
+            configSnapshotLock.unlock()
+            return cached.result
+        }
+        configSnapshotLock.unlock()
+
+        let result: Result<ProxyConfigSnapshot, BettboxConfigError>
+        if let text = try? String(contentsOf: candidate.configURL, encoding: .utf8) {
+            switch make(config: text, source: candidate.source, sourceId: candidate.sourceId, configURL: candidate.configURL) {
+            case .success(let client):
+                result = .success(ProxyConfigSnapshot(text: text, groupOrder: client.groupOrder))
+            case .failure(let error):
+                result = .failure(error)
             }
-            if case .failure(let error) = make(config: text) { return .failure(error) }
-            return .success(ResolvedProxyConfig(source: candidate.source,
-                                                sourceId: candidate.sourceId,
-                                                configURL: candidate.configURL,
-                                                profileURL: candidate.profileURL,
-                                                profileKind: candidate.profileKind,
-                                                text: text,
-                                                modified: candidate.modified))
+        } else {
+            result = .failure(.missing)
+        }
+        configSnapshotLock.lock()
+        if configSnapshotCache.count > 32 { configSnapshotCache.removeAll(keepingCapacity: true) }
+        configSnapshotCache[key] = (sig, result)
+        configSnapshotLock.unlock()
+        return result
+    }
+
+    static func resolve(source: ProxyClientSource,
+                        customPath: String = "",
+                        home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Result<ResolvedProxyConfig, BettboxConfigError> {
+        func resolved(_ candidate: ProxyConfigCandidate) -> Result<ResolvedProxyConfig, BettboxConfigError> {
+            switch snapshot(for: candidate) {
+            case .failure(let error):
+                return .failure(error)
+            case .success(let snapshot):
+                return .success(ResolvedProxyConfig(source: candidate.source,
+                                                    sourceId: candidate.sourceId,
+                                                    configURL: candidate.configURL,
+                                                    profileURL: candidate.profileURL,
+                                                    profileKind: candidate.profileKind,
+                                                    text: snapshot.text,
+                                                    modified: candidate.modified))
+            }
         }
 
         if source == .custom {
@@ -367,11 +407,11 @@ struct BettboxClient {
         guard !pool.isEmpty else { return .failure(.missing) }
 
         // 逐个校验：配置必须存在且控制器合法（回环）。缺失的跳过，非回环立即报错。
+        // snapshot 按 (path, fileSignature) 缓存，稳态只做 stat，不再读盘 / 重跑解析。
         var valid: [ProxyConfigCandidate] = []
         var seenNonLocal = false
         for candidate in pool {
-            guard let text = try? String(contentsOf: candidate.configURL, encoding: .utf8) else { continue }
-            switch make(config: text) {
+            switch snapshot(for: candidate) {
             case .success:
                 valid.append(candidate)
             case .failure(.nonLocal):
@@ -416,9 +456,12 @@ struct BettboxClient {
         return result
     }
 
-    /// 控制器可达性探测（0.4s 超时 + 15s 缓存），只在自动检测多配置并存时使用。
+    /// 控制器可达性缓存（15s）。同步路径只读缓存：未命中时返回 false，并在后台异步探测 `/version`
+    /// 刷新缓存供下一次 tick 使用，绝不在调用线程等待网络。
     private static let reachabilityLock = NSLock()
     private static var reachabilityCache: [String: (until: Date, ok: Bool)] = [:]
+    private static var reachabilityInFlight: Set<String> = []
+    private static let reachabilityQueue = DispatchQueue(label: "app.zest.bettbox.reachability", qos: .utility)
 
     private static func isControllerReachable(candidate: ProxyConfigCandidate) -> Bool {
         let key = candidate.sourceId + "|" + candidate.configURL.path
@@ -427,17 +470,36 @@ struct BettboxClient {
             reachabilityLock.unlock()
             return cached.ok
         }
+        let shouldProbe = !reachabilityInFlight.contains(key)
+        if shouldProbe { reachabilityInFlight.insert(key) }
         reachabilityLock.unlock()
 
-        var ok = false
-        if let text = try? String(contentsOf: candidate.configURL, encoding: .utf8),
-           case .success(let client) = make(config: text) {
-            ok = client.probeVersionSync()
+        if shouldProbe {
+            // 后台低开销探测（严格只连回环地址）；本次调用按「不可达」继续走最近修改兜底。
+            reachabilityQueue.async {
+                probeReachability(candidate: candidate, key: key)
+            }
         }
+        return false
+    }
+
+    private static func probeReachability(candidate: ProxyConfigCandidate, key: String) {
+        guard case .success(let snapshot) = snapshot(for: candidate),
+              case .success(let client) = make(config: snapshot.text,
+                                              source: candidate.source,
+                                              sourceId: candidate.sourceId,
+                                              configURL: candidate.configURL) else {
+            storeReachability(key: key, ok: false)
+            return
+        }
+        client.probeVersion { ok in storeReachability(key: key, ok: ok) }
+    }
+
+    private static func storeReachability(key: String, ok: Bool) {
         reachabilityLock.lock()
         reachabilityCache[key] = (Date().addingTimeInterval(15), ok)
+        reachabilityInFlight.remove(key)
         reachabilityLock.unlock()
-        return ok
     }
 
     /// 配置目录（kqueue 目录监听目标）。切源后随来源变化。
@@ -482,32 +544,58 @@ struct BettboxClient {
         var id: String?
         var label = ""
         if let url = resolved.profileURL {
-            switch resolved.profileKind {
-            case .bettboxJSON, .flClashJSON:
-                if let data = try? Data(contentsOf: url),
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    id = (json["currentProfileId"] as? String) ?? (json["current"] as? String)
-                    if let profiles = json["profiles"] as? [[String: Any]] {
-                        for item in profiles where (item["id"] as? String) == id {
-                            label = (item["label"] as? String) ?? (item["name"] as? String) ?? ""
-                            break
-                        }
-                    }
-                }
-            case .yamlCurrent:
-                if let text = try? String(contentsOf: url, encoding: .utf8) {
-                    id = scalar("current", in: text)
-                    label = yamlProfileName(for: id, in: text) ?? ""
-                }
-            case .none:
-                break
-            }
+            let parsed = cachedProfileInfo(from: url, kind: resolved.profileKind)
+            id = parsed.id
+            label = parsed.label
         }
         if let id, !id.isEmpty {
             return BettboxProfileInfo(id: id, label: label)
         }
         if resolved.source == .bettbox { return .fallback }
         return BettboxProfileInfo(id: "\(resolved.sourceId):default", label: "")
+    }
+
+    /// profile 文件解析结果按 `(path, fileSignature)` 缓存，稳态只做 stat。
+    private static let profileInfoLock = NSLock()
+    private static var profileInfoCache: [String: (sig: String, id: String?, label: String)] = [:]
+
+    private static func cachedProfileInfo(from url: URL, kind: ProxyProfileKind) -> (id: String?, label: String) {
+        let sig = fileSignature(url)
+        let key = url.path
+        profileInfoLock.lock()
+        if let cached = profileInfoCache[key], cached.sig == sig {
+            profileInfoLock.unlock()
+            return (cached.id, cached.label)
+        }
+        profileInfoLock.unlock()
+
+        var id: String?
+        var label = ""
+        switch kind {
+        case .bettboxJSON, .flClashJSON:
+            if let data = try? Data(contentsOf: url),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                id = (json["currentProfileId"] as? String) ?? (json["current"] as? String)
+                if let profiles = json["profiles"] as? [[String: Any]] {
+                    for item in profiles where (item["id"] as? String) == id {
+                        label = (item["label"] as? String) ?? (item["name"] as? String) ?? ""
+                        break
+                    }
+                }
+            }
+        case .yamlCurrent:
+            if let text = try? String(contentsOf: url, encoding: .utf8) {
+                id = scalar("current", in: text)
+                label = yamlProfileName(for: id, in: text) ?? ""
+            }
+        case .none:
+            break
+        }
+        profileInfoLock.lock()
+        if profileInfoCache.count > 16 { profileInfoCache.removeAll(keepingCapacity: true) }
+        profileInfoCache[key] = (sig, id, label)
+        profileInfoLock.unlock()
+        return (id, label)
     }
 
     /// 当前来源展示名（10 秒缓存，避免 SwiftUI 每次渲染都读配置文件）。
@@ -547,9 +635,9 @@ struct BettboxClient {
     private static func yamlProfileName(for id: String?, in text: String) -> String? {
         guard let id, !id.isEmpty else { return nil }
         var matched = false
-        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+        for rawLine in yamlLines(of: text) {
             let line = String(rawLine)
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             var body = trimmed
             if body.hasPrefix("-") { body = String(body.dropFirst()).trimmingCharacters(in: .whitespaces) }
             if body.hasPrefix("uid:") || body.hasPrefix("id:") {
@@ -611,12 +699,16 @@ struct BettboxClient {
         return "\(source.rawValue)|\(resolved.sourceId)|\(fileSignature(resolved.configURL))|\(profileId)"
     }
 
-    static func resolvedDisplayName(source: ProxyClientSource, customPath: String = "") -> String {
+    static func resolvedDisplayName(source: ProxyClientSource,
+                                    customPath: String = "",
+                                    home: URL = FileManager.default.homeDirectoryForCurrentUser) -> String {
+        if source == .custom { return source.localizedDisplayName }
         guard source == .auto else { return source.displayName }
-        if case .success(let resolved) = resolve(source: source, customPath: customPath) {
+        if case .success(let resolved) = resolve(source: source, customPath: customPath, home: home) {
             return resolved.source.displayName
         }
-        return source.displayName
+        // 自动检测失败时用通用名称，避免界面出现「找不到 自动检测 配置」这类中英混杂文案。
+        return "Clash / Bettbox"
     }
 
     // MARK: 配置解析辅助
@@ -625,10 +717,11 @@ struct BettboxClient {
     static func groupOrder(inConfig text: String) -> [String] {
         var result: [String] = []
         var inside = false
-        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+        for rawLine in yamlLines(of: text) {
             let line = String(rawLine)
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.isEmpty { continue }
+            // `.whitespacesAndNewlines` 兼容 CRLF：去掉行尾 `\r` 后再判断缩进与注释。
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty || trimmed.hasPrefix("#") { continue }
             if !line.hasPrefix(" ") && !line.hasPrefix("\t") {
                 if inside { break }
                 inside = trimmed.hasPrefix("proxy-groups:")
@@ -645,6 +738,14 @@ struct BettboxClient {
             }
         }
         return result
+    }
+
+    /// YAML 逐行切分：Swift 把 `\r\n` 视为单个 Character，直接 split("\n") 会漏切，
+    /// 这里先归一化换行再切，避免 CRLF 配置解析不到策略组 / profile。
+    private static func yamlLines(of text: String) -> [Substring] {
+        text.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .split(separator: "\n", omittingEmptySubsequences: false)
     }
 
     private static func yamlUnquote(_ value: String) -> String? {
@@ -669,12 +770,13 @@ struct BettboxClient {
         guard let re = try? NSRegularExpression(pattern: "^\(key):[ \\t]*(.*)$", options: .anchorsMatchLines),
               let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
               let r = Range(m.range(at: 1), in: text) else { return nil }
-        let v = text[r].trimmingCharacters(in: .whitespaces)
+        let v = text[r].trimmingCharacters(in: .whitespacesAndNewlines)
         if let q = v.first, q == "\"" || q == "'" {
             let rest = v.dropFirst()
             if let end = rest.firstIndex(of: q) { return String(rest[..<end]) }
         }
-        return (v.range(of: " #").map { String(v[..<$0.lowerBound]) } ?? v).trimmingCharacters(in: .whitespaces)
+        return (v.range(of: " #").map { String(v[..<$0.lowerBound]) } ?? v)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private init(origin: URL, base: URL, secret: String,
@@ -720,20 +822,14 @@ struct BettboxClient {
         return authorizedRequest(url: url, timeout: TimeInterval(clampedTimeout) / 1000.0 + 2.5)
     }
 
-    /// 同步探测 `/version`（自动检测用，0.4s 超时）。
-    fileprivate func probeVersionSync() -> Bool {
-        let url = origin.appendingPathComponent("version")
-        var request = authorizedRequest(url: url, timeout: 0.4)
+    /// 异步探测 `/version`（后台自动检测用，0.4s 超时，仅走回环会话）。绝不阻塞调用线程。
+    func probeVersion(completion: @escaping (Bool) -> Void) {
+        var request = authorizedRequest(url: origin.appendingPathComponent("version"), timeout: 0.4)
         request.httpMethod = "GET"
-        let semaphore = DispatchSemaphore(value: 0)
-        var ok = false
         let task = Self.loopbackSession.dataTask(with: request) { _, response, _ in
-            if let http = response as? HTTPURLResponse, http.statusCode == 200 { ok = true }
-            semaphore.signal()
+            completion((response as? HTTPURLResponse)?.statusCode == 200)
         }
         task.resume()
-        _ = semaphore.wait(timeout: .now() + 1.0)
-        return ok
     }
 
     func fetch() async -> BettboxResult {

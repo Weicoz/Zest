@@ -79,7 +79,7 @@ final class NodeMonitorService: @unchecked Sendable {
         /// 分组当前出口监测周期（分钟），与 60 秒主节拍共用。
         var watchIntervalMinutes: Int = AppSettings.defaultNodeGroupWatchIntervalMinutes
         /// 读取哪一个本机客户端的配置（节点监测与链路监测共用）。
-        var source: ProxyClientSource = .bettbox
+        var source: ProxyClientSource = .auto
         /// `source == .custom` 时用户指定的本机 config.yaml 路径。
         var customConfigPath: String = ""
     }
@@ -143,7 +143,7 @@ final class NodeMonitorService: @unchecked Sendable {
     func updateConfig(activeEnabled: Bool, intervalMinutes: Int, scopes: [String: NodeProbeScope],
                       groupAlertEnabled: Bool = true,
                       watchIntervalMinutes: Int = AppSettings.defaultNodeGroupWatchIntervalMinutes,
-                      source: ProxyClientSource = .bettbox,
+                      source: ProxyClientSource = .auto,
                       customConfigPath: String = "") {
         queue.async { [self] in
             let next = Config(activeEnabled: activeEnabled,
@@ -162,12 +162,24 @@ final class NodeMonitorService: @unchecked Sendable {
             let oldCustomPath = config.customConfigPath
             config = next
 
-            // 配置源或自定义路径变化：配置目录可能换了，重建 kqueue 监听并立刻重解析配置。
+            // 配置源或自定义路径变化：配置目录、指纹与运行态整体切到新客户端，
+            // 避免旧来源在途的探测结果串台，并让下一次 tick 立即按新配置工作。
             if oldSource != next.source || oldCustomPath != next.customConfigPath {
+                generation += 1
+                pendingManualWatch = false
+                pendingManualBulk = false
+                pendingAdHocGroup = nil
+                cancelWatchTask()
+                cancelActiveTask()
                 stopDirectoryWatcher()
                 lastConfigFingerprint = ""
                 refreshConfigCacheIfNeeded()
                 if enabled { startDirectoryWatcher() }
+                lastPassiveAt = .distantPast
+                lastWatchAt = .distantPast
+                lastActiveAt = .distantPast
+                nextActiveAllowedAt = .distantPast
+                if panelVisible { performPanelSummaryRefresh() }
             }
 
             let curProfileId = cachedProfile.id
