@@ -11,7 +11,9 @@ import SwiftUI
 struct NetworkSummaryView: View {
     @ObservedObject var monitor: NetworkMonitor
     @ObservedObject var settings: AppSettings
+    var nodeSummary: NodeSummaryStore? = nil
     var openWindow: () -> Void
+    var openNodes: () -> Void = {}
     var openSettings: () -> Void
 
     /// 面板内的排行范围：本次启动 / 最近 24 小时（来自持久化历史，含已退出的应用）。
@@ -32,6 +34,9 @@ struct NetworkSummaryView: View {
             } else {
                 rateCard(s)
                 appCard(s)
+                if let nodeSummary {
+                    PanelNodesCard(store: nodeSummary, openNodes: openNodes)
+                }
                 statsCard(s)
             }
         }
@@ -194,6 +199,138 @@ struct NetworkSummaryView: View {
         HStack(spacing: 4) {
             Image(systemName: symbol).font(.system(size: 11, weight: .bold)).foregroundStyle(color)
             Text(Fmt.rate(value)).font(.system(size: 16, weight: .semibold, design: .rounded).monospacedDigit())
+        }
+    }
+}
+
+/// 菜单栏弹窗“网络”页中的代理节点摘要卡片：展示选定分组当前出口状态与全量节点 1d/7d/30d 等权概览，点击直达“节点”页。
+private struct PanelNodesCard: View {
+    @ObservedObject var store: NodeSummaryStore
+    var openNodes: () -> Void
+
+    var body: some View {
+        let s = store.summary
+        if s.status == .configMissing && !s.hasAnyHistory {
+            EmptyView()
+        } else {
+            Card {
+                CardHeader(symbol: "waveform.path.ecg",
+                           title: L10n.text("panel.nodes.title", defaultValue: "代理节点"),
+                           tint: Palette.disk,
+                           trailing: s.profileName.isEmpty ? nil : s.profileName)
+                if !s.watchedGroups.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(s.watchedGroups.prefix(3)) { g in
+                            HStack(spacing: 5) {
+                                Circle().fill(stateColor(g.liveState)).frame(width: 6, height: 6)
+                                Text(g.groupName).font(.system(size: 10.5, weight: .semibold)).lineLimit(1)
+                                Text(g.currentNode).font(.system(size: 9.5)).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
+                                Spacer(minLength: 4)
+                                Text(uptimeText(g.day1.uptimeRate))
+                                    .font(.system(size: 10.5, weight: .semibold).monospacedDigit())
+                                    .foregroundStyle(uptimeTint(g.day1.uptimeRate))
+                                Text((g.latestMatchesCurrentNode ? g.latest : nil).map { $0.ok ? "\($0.delayMs)ms" : L10n.text("nodes.offline", defaultValue: "离线") } ?? "—")
+                                    .font(.system(size: 9.5).monospacedDigit())
+                                    .foregroundStyle(g.liveState == .offline ? Palette.heat : .secondary)
+                            }
+                        }
+                    }
+                    Divider().opacity(0.45)
+                }
+                if s.status == .available {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(s.onlineNodes > 0 ? Palette.memory : (s.offlineNodes > 0 ? Palette.heat : Color.gray.opacity(0.45)))
+                            .frame(width: 7, height: 7)
+                        Text(String(format: L10n.text("nodes.kpi.triState"), Int64(s.onlineNodes), Int64(s.offlineNodes), Int64(s.untestedNodes)))
+                            .font(.system(size: 11, weight: .medium).monospacedDigit())
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        viewNodesLink
+                    }
+                } else {
+                    HStack(spacing: 6) {
+                        Text(statusText(s.status))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        viewNodesLink
+                    }
+                }
+                if s.hasAnyHistory || s.status == .available {
+                    HStack(spacing: 6) {
+                        rangePill(L10n.text("nodes.range.day1", defaultValue: "1 天"), s.day1)
+                        rangePill(L10n.text("nodes.range.day7", defaultValue: "7 天"), s.day7)
+                        rangePill(L10n.text("nodes.range.day30", defaultValue: "30 天"), s.day30)
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: openNodes)
+            .help(L10n.text("panel.nodes.openHelp", defaultValue: "点击打开网络监控窗口查看节点在线率与延时详情"))
+        }
+    }
+
+    private func stateColor(_ state: NodeLiveState) -> Color {
+        switch state {
+        case .online: return Palette.memory
+        case .offline: return Palette.heat
+        case .untested: return Color.gray.opacity(0.45)
+        }
+    }
+
+    private var viewNodesLink: some View {
+        Button(action: openNodes) {
+            HStack(spacing: 2) {
+                Text(L10n.text("panel.nodes.open", defaultValue: "节点详情"))
+                Image(systemName: "chevron.right").font(.system(size: 8, weight: .bold))
+            }
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(Palette.cpu)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+    }
+
+    private func rangePill(_ title: String, _ a: NodeEqualWeightAggregate) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title).font(.system(size: 9.5, weight: .medium)).foregroundStyle(.secondary)
+            Text(uptimeText(a.avgUptimeRate))
+                .font(.system(size: 11.5, weight: .semibold).monospacedDigit())
+                .foregroundStyle(uptimeTint(a.avgUptimeRate))
+            Text(a.avgDelayMs.map { "\($0) ms" } ?? "—")
+                .font(.system(size: 9.5).monospacedDigit())
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 6).padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.primary.opacity(0.04)))
+    }
+
+    private func uptimeText(_ rate: Double?) -> String {
+        guard let rate else { return "—" }
+        let pct = rate * 100.0
+        return pct >= 99.95 ? "100%" : String(format: "%.1f%%", pct)
+    }
+
+    private func uptimeTint(_ rate: Double?) -> Color {
+        guard let rate else { return .secondary }
+        if rate >= 0.95 { return Palette.memory }
+        if rate >= 0.70 { return Palette.wired }
+        return Palette.heat
+    }
+
+    private func statusText(_ status: NodeMonitorStatus) -> String {
+        switch status {
+        case .starting: return L10n.text("正在连接 Bettbox…")
+        case .notRunning: return L10n.text("Bettbox 未运行，或控制器无法连接")
+        case .nonLocalController: return L10n.text("Bettbox 控制器不是本机地址，为保护 secret 不连接")
+        case .authFailed: return L10n.text("Bettbox 控制器认证失败，请检查配置里的 secret")
+        case .decodeFailed: return L10n.text("无法解析 Bettbox 返回的节点数据")
+        case .configMissing: return L10n.text("找不到 Bettbox 配置，未读取节点")
+        case .available: return ""
         }
     }
 }

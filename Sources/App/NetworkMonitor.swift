@@ -173,11 +173,13 @@ final class NetworkMonitor: ObservableObject {
         }
     }
 
-    /// 清除历史时通知磁盘采样服务（它有自己的写入队列）。
+    /// 清除历史前先通知节点监测服务递增代次并记录清除时间戳，避免并发写回；完成后再通知磁盘服务。
+    var onHistoryWillClear: (() -> Void)?
     var onHistoryCleared: (() -> Void)?
 
     func clearHistory() {
         queue.async { [self] in
+            onHistoryWillClear?()
             store?.clearAll()
             onHistoryCleared?()
             physical.discardPending()

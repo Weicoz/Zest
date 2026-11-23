@@ -20,6 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var diskProcess: Process?
     private var diskWindow: DiskWindowController?
     private let diskService = DiskIOService()
+    private let nodeService = NodeMonitorService()
+    private let nodeSummary = NodeSummaryStore()
     private let processes = ProcessMonitor()
     private var statusItem: StatusItemController?
     private var settingsWindow: SettingsWindowController?
@@ -70,18 +72,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.settings.reloadSuppressions()
             self?.network.reloadAlertsFromStore()
         }
+        // 节点监测配置变更与手动触发探测（来自网络监控窗口或设置窗口，优先从 userInfo 读取避开 cfprefsd 竞态）。
+        DistributedNotificationCenter.default().addObserver(
+            forName: AppSettings.nodeProbeSettingsChangedNotification, object: nil, queue: .main) { [weak self] note in
+            guard let self else { return }
+            self.settings.reloadNodeProbeSettings(note)
+            self.syncNodeServiceConfig()
+        }
+        DistributedNotificationCenter.default().addObserver(
+            forName: NodeMonitorService.triggerActiveProbeNotification, object: nil, queue: .main) { [weak self] note in
+            guard let self else { return }
+            self.settings.reloadNodeProbeSettings(note)
+            self.syncNodeServiceConfig()
+            let adHoc = note.userInfo?["adHocGroup"] as? String
+            self.nodeService.triggerActiveProbeNow(adHocGroup: adHoc)
+        }
+        DistributedNotificationCenter.default().addObserver(
+            forName: NodeMonitorService.cancelActiveProbeNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.nodeService.cancelProbesByUser()
+        }
+        DistributedNotificationCenter.default().addObserver(
+            forName: NodeMonitorService.queryProbeProgressNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.nodeService.rebroadcastProgress()
+        }
 
         statusItem = StatusItemController(store: store, settings: settings, network: network, processes: processes,
                                           openSettings: { [weak self] in self?.openSettings() },
-                                          openNetworkWindow: { [weak self] in self?.openNetworkWindow() },
-                                          openDiskWindow: { [weak self] in self?.openDiskWindow() }, tools: tools)
+                                          openNetworkWindow: { [weak self] page in self?.openNetworkWindow(page: page) },
+                                          openDiskWindow: { [weak self] in self?.openDiskWindow() },
+                                          tools: tools, nodeSummary: nodeSummary)
         statusItem?.onPanelVisibilityChange = { [weak self] visible in
             guard let self else { return }
-            if visible && UserDefaults.standard.string(forKey: "panelTab") != "processes" { engine.refreshCapacity() }
+            let tab = UserDefaults.standard.string(forKey: "panelTab") ?? "overview"
+            nodeService.setPanelVisible(visible && tab == "network")
+            if visible && tab != "processes" { engine.refreshCapacity() }
             PerformanceLog.shared.event("panel_visibility", ["visible": visible])
             updateSampleOptions()
         }
-        statusItem?.onPanelTabChange = { [weak self] _ in self?.updateSampleOptions() }
+        statusItem?.onPanelTabChange = { [weak self] tab in
+            guard let self else { return }
+            self.nodeService.setPanelVisible(self.store.isPanelVisible && tab == .network)
+            self.updateSampleOptions()
+        }
 
         store.setCoreKinds(engine.coreKinds)
         engine.onSnapshot = { [weak self] snapshot in
@@ -99,13 +131,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         network.start()
         diskService.setThresholds(hourGB: settings.writeAlertHourGB, dayGB: settings.writeAlertDayGB)   // 先于 start，队列保序
         diskService.start()
+        syncNodeServiceConfig()
+        nodeService.onSummary = { [weak self] summary in
+            DispatchQueue.main.async { self?.nodeSummary.update(summary) }
+        }
+        if settings.networkMonitoring { nodeService.start() }
         settings.$writeAlertHourGB.combineLatest(settings.$writeAlertDayGB).sink { [diskService] h, d in
             diskService.setThresholds(hourGB: h, dayGB: d)
         }.store(in: &cancellables)
+        Publishers.CombineLatest4(settings.$nodeActiveProbeEnabled, settings.$nodeProbeIntervalMinutes,
+                                  settings.$nodeProbeScopes, settings.$nodeGroupAlertEnabled)
+            .dropFirst()
+            .sink { [nodeService] enabled, interval, scopes, alertEnabled in
+                nodeService.updateConfig(activeEnabled: enabled, intervalMinutes: interval,
+                                         scopes: scopes, groupAlertEnabled: alertEnabled)
+            }
+            .store(in: &cancellables)
+        network.onHistoryWillClear = { [nodeService] in nodeService.clearSync() }
         network.onHistoryCleared = { [diskService] in diskService.clear() }
         settings.$networkMonitoring.dropFirst().removeDuplicates().sink { [weak self] on in
             on ? self?.network.start() : self?.network.stop()
             on ? self?.diskService.start() : self?.diskService.stop()
+            on ? self?.nodeService.start() : self?.nodeService.stop()
         }.store(in: &cancellables)
 
         #if PERFORMANCE_TEST
@@ -165,9 +212,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             store.isPanelVisible = true
             updateSampleOptions()
             network.setVisible(true)
+            nodeService.refreshPanelSummaryNow()
             processes.start()
             DispatchQueue.main.asyncAfter(deadline: .now() + 14) { [self] in
-                SnapshotExporter.export(store: store, settings: settings, network: network, processes: processes, to: dir)
+                SnapshotExporter.export(store: store, settings: settings, network: network, processes: processes, nodeSummary: nodeSummary, to: dir)
                 NSApp.terminate(nil)
             }
         }
@@ -218,6 +266,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             forName: AppSettings.languageChangedNotification, object: nil, queue: .main) { [weak self] note in
                 self?.settings.reloadLanguage(note)
             }
+        if AppDelegate.isNetworkViewer {
+            DistributedNotificationCenter.default().addObserver(
+                forName: AppSettings.nodeProbeSettingsChangedNotification, object: nil, queue: .main) { [weak self] note in
+                    self?.settings.reloadNodeProbeSettings(note)
+                }
+        }
     }
 
     /// 只有菜单栏显示温度/风扇或面板打开时才读取 SMC。
@@ -232,6 +286,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !screensAsleep else { return }
         screensAsleep = true
         engine.stop()
+        nodeService.setPaused(true)
     }
 
     @objc private func screensDidWake() {
@@ -239,6 +294,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         screensAsleep = false
         store.resetHistory()
         engine.start(interval: settings.refreshInterval)
+        nodeService.setPaused(false)
+    }
+
+    private func syncNodeServiceConfig() {
+        nodeService.updateConfig(activeEnabled: settings.nodeActiveProbeEnabled,
+                                 intervalMinutes: settings.nodeProbeIntervalMinutes,
+                                 scopes: settings.nodeProbeScopes,
+                                 groupAlertEnabled: settings.nodeGroupAlertEnabled)
     }
 
     #if PERFORMANCE_TEST
@@ -259,6 +322,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
         network.flushSync()
         network.stop()
+        nodeService.stop()
         diskService.flushSync()
         viewerProcess?.terminate()
         diskProcess?.terminate()
@@ -266,9 +330,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         PerformanceLog.shared.flush()
     }
 
-    /// 打开网络监控：启动（或激活已在运行的）独立窗口进程。
-    private func openNetworkWindow() {
+    /// 打开网络监控：启动（或激活已在运行的）独立窗口进程；传入 page 时直达对应页签。
+    private func openNetworkWindow(page: NetworkPage? = nil) {
+        if let page {
+            UserDefaults.standard.set(page.rawValue, forKey: "networkPage")
+        }
         if let running = viewerProcess, running.isRunning {
+            if let page {
+                DistributedNotificationCenter.default().postNotificationName(
+                    NetworkWindowView.selectPageNotification, object: nil,
+                    userInfo: ["page": page.rawValue], deliverImmediately: true)
+            }
             NSRunningApplication(processIdentifier: running.processIdentifier)?.activate(options: [.activateAllWindows])
             return
         }
@@ -292,6 +364,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             // 无法启动独立进程时退回到本进程内打开。
             presentNetworkWindowInProcess()
+            if let page {
+                DistributedNotificationCenter.default().postNotificationName(
+                    NetworkWindowView.selectPageNotification, object: nil,
+                    userInfo: ["page": page.rawValue], deliverImmediately: true)
+            }
         }
     }
 

@@ -54,6 +54,12 @@ def main():
              ROOT / "Sources/UI/NetworkWindow/DiskWindowController.swift",
              ROOT / "Sources/UI/NetworkWindow/DiskAlertsPage.swift",
              ROOT / "Sources/UI/NetworkWindow/DiskHealthPage.swift",
+             ROOT / "Sources/UI/NetworkWindow/NetworkNodesPage.swift",
+             ROOT / "Sources/UI/NetworkWindow/NodeMonitorModel.swift",
+             ROOT / "Sources/UI/NetworkWindow/NetworkWindowView.swift",
+             ROOT / "Sources/UI/NetworkSummaryView.swift",
+             ROOT / "Sources/UI/SettingsView.swift",
+             ROOT / "Sources/App/NodeMonitorService.swift",
              ROOT / "Sources/UI/FlowcatImportSection.swift"]
     catalog = json.loads((ROOT / "Resources/Localizable.xcstrings").read_text())["strings"]
     for file in files:

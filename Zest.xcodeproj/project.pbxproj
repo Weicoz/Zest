@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E1E1E1E1E1E1E1E11690000 /* NodeMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01690000 /* NodeMonitorTests.swift */; };
+		E1E1E1E1E1E1E1E11680000 /* NetworkNodesPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01680000 /* NetworkNodesPage.swift */; };
+		E1E1E1E1E1E1E1E11670000 /* NodeMonitorModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01670000 /* NodeMonitorModel.swift */; };
+		E1E1E1E1E1E1E1E11660000 /* NodeMonitorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01660000 /* NodeMonitorService.swift */; };
+		E1E1E1E1E1E1E1E11650000 /* HistoryStore+Nodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01650000 /* HistoryStore+Nodes.swift */; };
+		E1E1E1E1E1E1E1E11640000 /* NodeMonitorCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01640000 /* NodeMonitorCore.swift */; };
 		E1E1E1E1E1E1E1E11610000 /* FlowcatImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01610000 /* FlowcatImportTests.swift */; };
 		E1E1E1E1E1E1E1E11550000 /* DiskLedgerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */; };
 		E1E1E1E1E1E1E1E11580000 /* WriteAlertTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */; };
@@ -118,6 +124,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E0E0E0E0E0E0E0E01690000 /* NodeMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NodeMonitorTests.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01680000 /* NetworkNodesPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NetworkNodesPage.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01670000 /* NodeMonitorModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NodeMonitorModel.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01660000 /* NodeMonitorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NodeMonitorService.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01650000 /* HistoryStore+Nodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HistoryStore+Nodes.swift"; sourceTree = "<group>"; };
+		E0E0E0E0E0E0E0E01640000 /* NodeMonitorCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NodeMonitorCore.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01610000 /* FlowcatImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FlowcatImportTests.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiskLedgerTests.swift"; sourceTree = "<group>"; };
 		E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WriteAlertTests.swift"; sourceTree = "<group>"; };
@@ -242,6 +254,7 @@
 				AB2574F221F87BEB9985F5A7 /* HistoryGeoTests.swift */,
 				286F663AA65E6879269A61B9 /* DailyTotalsTests.swift */,
 				E0E0E0E0E0E0E0E01610000 /* FlowcatImportTests.swift */,
+				E0E0E0E0E0E0E0E01690000 /* NodeMonitorTests.swift */,
 				E0E0E0E0E0E0E0E01550000 /* DiskLedgerTests.swift */,
 				E0E0E0E0E0E0E0E01580000 /* WriteAlertTests.swift */,
 				E0E0E0E0E0E0E0E01600000 /* DiskHealthTests.swift */,
@@ -292,6 +305,8 @@
 				E0E0E0E0E0E0E0E01570000 /* DiskAlertsPage.swift */,
 				E0E0E0E0E0E0E0E01590000 /* DiskHealthPage.swift */,
 				B2E8E06D987C92695F873E8A /* LinkHistoryModel.swift */,
+				E0E0E0E0E0E0E0E01670000 /* NodeMonitorModel.swift */,
+				E0E0E0E0E0E0E0E01680000 /* NetworkNodesPage.swift */,
 				A0A0A0A0A0A0A0A0A0000005 /* LinkExport.swift */,
 				B4D6E8F0A2C31579BD24F6A8 /* AppsRange.swift */,
 				5A9920AB0B34A62EB3EB55CC /* NetworkTopologyPage.swift */,
@@ -325,6 +340,8 @@
 				417A3EF46497DC1982500D0B /* LinkRecorder.swift */,
 				E0E0E0E0E0E0E0E01510000 /* HistoryStore+Disk.swift */,
 				E0E0E0E0E0E0E0E01630000 /* FlowcatImporter.swift */,
+				E0E0E0E0E0E0E0E01640000 /* NodeMonitorCore.swift */,
+				E0E0E0E0E0E0E0E01650000 /* HistoryStore+Nodes.swift */,
 				E0E0E0E0E0E0E0E01500000 /* DiskLedger.swift */,
 				E0E0E0E0E0E0E0E01560000 /* HistoryStore+WriteAlerts.swift */,
 				669BBBF4C9E61D7B898D356C /* HistoryStore+Links.swift */,
@@ -369,6 +386,7 @@
 				AA8AA3E4358C35D270B95FD4 /* MonitorStore.swift */,
 				527EA9C8FDA034DB2DD4C1B6 /* NetworkMonitor.swift */,
 				E0E0E0E0E0E0E0E01520000 /* DiskIOService.swift */,
+				E0E0E0E0E0E0E0E01660000 /* NodeMonitorService.swift */,
 				EA328853544B1E1E5DACEE12 /* PerformanceLog.swift */,
 				46D36C8053D431A4DD4A3BF8 /* ProcessMonitor.swift */,
 				5D5AAD84D1DD12B78F6CC734 /* SettingsWindowController.swift */,
@@ -541,6 +559,7 @@
 				08FE8FCE92C3A047C065891B /* HistoryGeoTests.swift in Sources */,
 				B92CB18C2F3969219E6272CC /* DailyTotalsTests.swift in Sources */,
 				E1E1E1E1E1E1E1E11610000 /* FlowcatImportTests.swift in Sources */,
+				E1E1E1E1E1E1E1E11690000 /* NodeMonitorTests.swift in Sources */,
 				E1E1E1E1E1E1E1E11550000 /* DiskLedgerTests.swift in Sources */,
 				E1E1E1E1E1E1E1E11580000 /* WriteAlertTests.swift in Sources */,
 				E1E1E1E1E1E1E1E11600000 /* DiskHealthTests.swift in Sources */,
@@ -607,6 +626,11 @@
 				B08060C4C29C063E871D64C4 /* LinkRecorder.swift in Sources */,
 				E1E1E1E1E1E1E1E11510000 /* HistoryStore+Disk.swift in Sources */,
 				E1E1E1E1E1E1E1E11630000 /* FlowcatImporter.swift in Sources */,
+				E1E1E1E1E1E1E1E11640000 /* NodeMonitorCore.swift in Sources */,
+				E1E1E1E1E1E1E1E11650000 /* HistoryStore+Nodes.swift in Sources */,
+				E1E1E1E1E1E1E1E11660000 /* NodeMonitorService.swift in Sources */,
+				E1E1E1E1E1E1E1E11670000 /* NodeMonitorModel.swift in Sources */,
+				E1E1E1E1E1E1E1E11680000 /* NetworkNodesPage.swift in Sources */,
 				E1E1E1E1E1E1E1E11500000 /* DiskLedger.swift in Sources */,
 				E1E1E1E1E1E1E1E11560000 /* HistoryStore+WriteAlerts.swift in Sources */,
 				8D611FAC662287625A1F0724 /* HistoryStore+Links.swift in Sources */,

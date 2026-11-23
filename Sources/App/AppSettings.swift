@@ -44,10 +44,13 @@ struct MenuBarEntry: Codable, Identifiable, Equatable {
 
 final class AppSettings: ObservableObject {
     static let refreshChoices: [Double] = [0.5, 1, 2, 3, 5, 10]
+    static let nodeProbeIntervalChoices: [Int] = [5, 10, 15, 30]
     static let languageChangedNotification = Notification.Name("app.zest.monitor.language")
+    static let nodeProbeSettingsChangedNotification = Notification.Name("app.zest.monitor.nodeProbeSettings")
 
     private let defaults: UserDefaults
     private var isApplyingRemoteLanguage = false
+    private var isApplyingRemoteNodeProbe = false
 
     @Published var refreshInterval: Double { didSet { defaults.set(refreshInterval, forKey: Keys.interval) } }
     @Published var menuBarEntries: [MenuBarEntry] { didSet { saveEntries() } }
@@ -82,6 +85,44 @@ final class AppSettings: ObservableObject {
         didSet { if let d = try? JSONEncoder().encode(suppressions) { defaults.set(d, forKey: Keys.suppressions) } }
     }
 
+    // 节点监测（主动探测按 Bettbox profileId 隔离保存）
+    @Published var nodeActiveProbeEnabled: Bool {
+        didSet {
+            guard nodeActiveProbeEnabled != oldValue else { return }
+            defaults.set(nodeActiveProbeEnabled, forKey: Keys.nodeActiveProbeEnabled)
+            broadcastNodeProbeSettings()
+        }
+    }
+    @Published var nodeProbeIntervalMinutes: Int {
+        didSet {
+            guard nodeProbeIntervalMinutes != oldValue else { return }
+            defaults.set(nodeProbeIntervalMinutes, forKey: Keys.nodeProbeIntervalMinutes)
+            broadcastNodeProbeSettings()
+        }
+    }
+    @Published var nodeProbeScopes: [String: NodeProbeScope] {
+        didSet {
+            guard nodeProbeScopes != oldValue else { return }
+            if let d = try? JSONEncoder().encode(nodeProbeScopes) { defaults.set(d, forKey: Keys.nodeProbeScopes) }
+            broadcastNodeProbeSettings()
+        }
+    }
+    /// 选定分组当前出口连续 2 次超时时发送系统通知。
+    @Published var nodeGroupAlertEnabled: Bool {
+        didSet {
+            guard nodeGroupAlertEnabled != oldValue else { return }
+            defaults.set(nodeGroupAlertEnabled, forKey: Keys.nodeGroupAlertEnabled)
+            broadcastNodeProbeSettings()
+        }
+    }
+    /// 自定义趋势分组方案（正则自动提取 / 自由组合规则：正则、策略组、指定节点、链式筛选）。仅 UI 窗口读取，零后台开销。
+    @Published var nodeTrendGroupSets: [NodeTrendGroupSet] {
+        didSet {
+            guard nodeTrendGroupSets != oldValue else { return }
+            if let d = try? JSONEncoder().encode(nodeTrendGroupSets) { defaults.set(d, forKey: Keys.nodeTrendGroupSets) }
+        }
+    }
+
     private enum Keys {
         static let interval = "refreshInterval"
         static let entries = "menuBarEntries"
@@ -97,6 +138,11 @@ final class AppSettings: ObservableObject {
         static let awakeMinutes = "toolsAwakeMinutes"
         static let cleaningSeconds = "toolsCleaningSeconds"
         static let dockDisplayID = "toolsDockDisplayID"
+        static let nodeActiveProbeEnabled = "nodeActiveProbeEnabled"
+        static let nodeProbeIntervalMinutes = "nodeProbeIntervalMinutes"
+        static let nodeProbeScopes = "nodeProbeScopes"
+        static let nodeGroupAlertEnabled = "nodeGroupAlertEnabled"
+        static let nodeTrendGroupSets = "nodeTrendGroupSets"
     }
 
     static let defaultEntries: [MenuBarEntry] = [
@@ -127,6 +173,19 @@ final class AppSettings: ObservableObject {
         writeAlertDayGB = max(defaults.object(forKey: Keys.writeAlertDayGB) as? Int ?? 10, 0)
         suppressions = defaults.data(forKey: Keys.suppressions)
             .flatMap { try? JSONDecoder().decode([SuppressionRule].self, from: $0) } ?? []
+        nodeActiveProbeEnabled = defaults.bool(forKey: Keys.nodeActiveProbeEnabled)
+        let probeMin = defaults.integer(forKey: Keys.nodeProbeIntervalMinutes)
+        nodeProbeIntervalMinutes = AppSettings.nodeProbeIntervalChoices.contains(probeMin) ? probeMin : 10
+        nodeProbeScopes = defaults.data(forKey: Keys.nodeProbeScopes)
+            .flatMap { try? JSONDecoder().decode([String: NodeProbeScope].self, from: $0) } ?? [:]
+        nodeGroupAlertEnabled = defaults.object(forKey: Keys.nodeGroupAlertEnabled) as? Bool ?? true
+        if let rawSets = defaults.data(forKey: Keys.nodeTrendGroupSets),
+           let decodedSets = try? JSONDecoder().decode([NodeTrendGroupSet].self, from: rawSets),
+           !decodedSets.isEmpty {
+            nodeTrendGroupSets = decodedSets
+        } else {
+            nodeTrendGroupSets = NodeTrendGroupSet.defaultPresets()
+        }
         appLanguage = AppLanguage.stored(defaults.string(forKey: Keys.appLanguage))
         L10n.use(appLanguage)
     }
@@ -151,6 +210,70 @@ final class AppSettings: ObservableObject {
         let fresh = defaults.data(forKey: Keys.suppressions)
             .flatMap { try? JSONDecoder().decode([SuppressionRule].self, from: $0) } ?? []
         if fresh != suppressions { suppressions = fresh }
+    }
+
+    func scope(forProfile id: String) -> NodeProbeScope {
+        nodeProbeScopes[id] ?? NodeProbeScope()
+    }
+
+    func setScope(_ scope: NodeProbeScope, forProfile id: String) {
+        var next = nodeProbeScopes
+        if !scope.hasAnySelection { next.removeValue(forKey: id) } else { next[id] = scope }
+        if next != nodeProbeScopes { nodeProbeScopes = next }
+    }
+
+    func resetNodeTrendGroupSets() {
+        nodeTrendGroupSets = NodeTrendGroupSet.defaultPresets()
+    }
+
+    private struct NodeProbeSyncPayload: Codable {
+        var enabled: Bool
+        var intervalMinutes: Int
+        var scopes: [String: NodeProbeScope]
+        var groupAlertEnabled: Bool
+    }
+
+    func reloadNodeProbeSettings(_ note: Notification? = nil) {
+        isApplyingRemoteNodeProbe = true
+        defer { isApplyingRemoteNodeProbe = false }
+        if let raw = note?.userInfo?["payload"] as? String,
+           let data = raw.data(using: .utf8),
+           let payload = try? JSONDecoder().decode(NodeProbeSyncPayload.self, from: data) {
+            let interval = AppSettings.nodeProbeIntervalChoices.contains(payload.intervalMinutes) ? payload.intervalMinutes : 10
+            if payload.enabled != nodeActiveProbeEnabled { nodeActiveProbeEnabled = payload.enabled }
+            if interval != nodeProbeIntervalMinutes { nodeProbeIntervalMinutes = interval }
+            if payload.scopes != nodeProbeScopes { nodeProbeScopes = payload.scopes }
+            if payload.groupAlertEnabled != nodeGroupAlertEnabled { nodeGroupAlertEnabled = payload.groupAlertEnabled }
+            return
+        }
+        let enabled = defaults.bool(forKey: Keys.nodeActiveProbeEnabled)
+        if enabled != nodeActiveProbeEnabled { nodeActiveProbeEnabled = enabled }
+        let rawInterval = defaults.integer(forKey: Keys.nodeProbeIntervalMinutes)
+        let interval = AppSettings.nodeProbeIntervalChoices.contains(rawInterval) ? rawInterval : 10
+        if interval != nodeProbeIntervalMinutes { nodeProbeIntervalMinutes = interval }
+        let scopes = defaults.data(forKey: Keys.nodeProbeScopes)
+            .flatMap { try? JSONDecoder().decode([String: NodeProbeScope].self, from: $0) } ?? [:]
+        if scopes != nodeProbeScopes { nodeProbeScopes = scopes }
+        let alert = defaults.object(forKey: Keys.nodeGroupAlertEnabled) as? Bool ?? true
+        if alert != nodeGroupAlertEnabled { nodeGroupAlertEnabled = alert }
+    }
+
+    /// 构造跨进程通知负载，规避 UserDefaults(cfprefsd) 异步同步与 distnoted 通知之间的竞态。
+    func nodeProbeUserInfo() -> [AnyHashable: Any]? {
+        let payload = NodeProbeSyncPayload(enabled: nodeActiveProbeEnabled,
+                                           intervalMinutes: nodeProbeIntervalMinutes,
+                                           scopes: nodeProbeScopes,
+                                           groupAlertEnabled: nodeGroupAlertEnabled)
+        guard let data = try? JSONEncoder().encode(payload),
+              let str = String(data: data, encoding: .utf8) else { return nil }
+        return ["payload": str]
+    }
+
+    private func broadcastNodeProbeSettings() {
+        guard !isApplyingRemoteNodeProbe else { return }
+        DistributedNotificationCenter.default().postNotificationName(
+            AppSettings.nodeProbeSettingsChangedNotification, object: nil,
+            userInfo: nodeProbeUserInfo(), deliverImmediately: true)
     }
 
     /// 另一个进程改了界面语言。值不变则不赋值，避免再次广播。

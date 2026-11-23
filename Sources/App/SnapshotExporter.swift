@@ -16,7 +16,8 @@ enum SnapshotExporter {
         return URL(fileURLWithPath: args[i + 1], isDirectory: true)
     }
 
-    static func export(store: MonitorStore, settings: AppSettings, network: NetworkMonitor, processes: ProcessMonitor, to dir: URL) {
+    static func export(store: MonitorStore, settings: AppSettings, network: NetworkMonitor, processes: ProcessMonitor,
+                       nodeSummary: NodeSummaryStore? = nil, to dir: URL) {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let s = store.snapshot
         print("snapshot cpu=\(s?.cpu != nil) mem=\(s?.memory != nil) net=\(s?.network != nil) disk=\(s?.disk != nil) "
@@ -28,7 +29,7 @@ enum SnapshotExporter {
                 let natural = NSHostingView(rootView: OverviewContent(store: store, settings: settings, processes: processes)
                     .frame(width: PanelView.contentWidth)).fittingSize.height
                 let view = NSHostingView(rootView: PanelView(store: store, settings: settings, network: network, processes: processes,
-                                                             contentHeight: natural, openSettings: {}, quit: {})
+                                                             contentHeight: natural, openSettings: {}, quit: {}, nodeSummary: nodeSummary)
                     .background(Color(nsColor: .windowBackgroundColor)))
                 view.appearance = NSAppearance(named: appearance)
                 // 先布局一次让内容高度测量生效，再按最终尺寸输出。

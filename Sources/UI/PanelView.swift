@@ -14,11 +14,12 @@ struct PanelView: View {
     /// 避免弹窗变高时以底边为基准向上生长而超出屏幕。nil 表示按内容自然高度（仅用于测量）。
     var contentHeight: CGFloat?
     var openSettings: () -> Void
-    var openNetworkWindow: () -> Void = {}
+    var openNetworkWindow: (NetworkPage?) -> Void = { _ in }
     var openDiskWindow: () -> Void = {}
     var quit: () -> Void
     var onTabChange: (PanelTab) -> Void = { _ in }
     var tools: QuickToolsController? = nil
+    var nodeSummary: NodeSummaryStore? = nil
 
     @AppStorage("panelTab") private var tab = PanelTab.overview
 
@@ -59,7 +60,10 @@ struct PanelView: View {
                     case .overview: overview
                     case .processes: ProcessesView(monitor: processes, availableHeight: contentHeight)
                     case .network: NetworkSummaryView(monitor: network, settings: settings,
-                                                     openWindow: openNetworkWindow, openSettings: openSettings)
+                                                     nodeSummary: nodeSummary,
+                                                     openWindow: { openNetworkWindow(nil) },
+                                                     openNodes: { openNetworkWindow(.nodes) },
+                                                     openSettings: openSettings)
                     case .tools:
                         if let tools { QuickToolsView(tools: tools, settings: settings, openSettings: openSettings) }
                     }
@@ -77,7 +81,9 @@ struct PanelView: View {
     }
 
     private var overview: some View {
-        OverviewContent(store: store, settings: settings, processes: processes, openDiskWindow: openDiskWindow) { tab = .processes }
+        OverviewContent(store: store, settings: settings, processes: processes,
+                        openNetworkWindow: { openNetworkWindow(nil) },
+                        openDiskWindow: openDiskWindow) { tab = .processes }
     }
 
 }
@@ -130,6 +136,7 @@ struct OverviewContent: View {
     @ObservedObject var store: MonitorStore
     @ObservedObject var settings: AppSettings
     var processes: ProcessMonitor
+    var openNetworkWindow: () -> Void = {}
     var openDiskWindow: () -> Void = {}
     var showProcesses: () -> Void = {}
 
@@ -141,7 +148,7 @@ struct OverviewContent: View {
             TopProcessesCard(monitor: processes, showAll: showProcesses)
             HStack(alignment: .top, spacing: 8) {
                 MemoryCard(memory: s?.memory, history: store.memoryHistory.elements)
-                NetworkCard(network: s?.network, down: store.downloadHistory.elements, up: store.uploadHistory.elements)
+                NetworkCard(network: s?.network, down: store.downloadHistory.elements, up: store.uploadHistory.elements, open: openNetworkWindow)
             }
             .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .top, spacing: 8) {
@@ -325,6 +332,7 @@ private struct NetworkCard: View {
     var network: NetworkReading?
     var down: [Double]
     var up: [Double]
+    var open: () -> Void = {}
 
     var body: some View {
         Card {
@@ -346,6 +354,9 @@ private struct NetworkCard: View {
                 Unavailable(text: L10n.text("读取中…"))
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: open)
+        .help(L10n.text("panel.network.openHelp", defaultValue: "打开网络监控窗口"))
     }
 
     private func rate(symbol: String, color: Color, value: Double) -> some View {

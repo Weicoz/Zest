@@ -151,6 +151,18 @@ private struct NetworkSettings: View {
                 Text(L10n.text("某程序在本地整点小时或本地日内的磁盘写入超过阈值时发送系统通知，每档每程序每时段只提醒一次。设为 0 关闭该档。需允许 Zest Plus 发送通知。"))
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section {
+                Toggle(L10n.text("nodes.watch.alertToggle", defaultValue: "连续 2 次超时发送断线系统通知"), isOn: $settings.nodeGroupAlertEnabled)
+                Toggle(L10n.text("nodes.probe.enable", defaultValue: "启用定时主动探测"), isOn: $settings.nodeActiveProbeEnabled)
+                Picker(L10n.text("nodes.probe.interval", defaultValue: "探测间隔"), selection: $settings.nodeProbeIntervalMinutes) {
+                    ForEach(AppSettings.nodeProbeIntervalChoices, id: \.self) { m in
+                        Text(String(format: L10n.text("%lld 分钟"), Int64(m))).tag(m)
+                    }
+                }
+                .disabled(!settings.nodeActiveProbeEnabled)
+                Text(L10n.text("nodes.settings.note", defaultValue: "默认仅每 60 秒被动吸收 Bettbox 健康检查记录（零外网流量）。分组当前出口监测（每 5 分钟）与候选组主动探测请在“网络监控 › 节点”页按当前配置勾选。"))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let network {
                 HistorySection(network: network, settings: settings)
                 FlowcatImportSection(network: network)

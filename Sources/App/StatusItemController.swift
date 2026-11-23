@@ -16,9 +16,10 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private let network: NetworkMonitor
     private let processes: ProcessMonitor
     private let onOpenSettings: () -> Void
-    private let onOpenNetworkWindow: () -> Void
+    private let onOpenNetworkWindow: (NetworkPage?) -> Void
     private let onOpenDiskWindow: () -> Void
     private var tools: QuickToolsController?
+    private var nodeSummary: NodeSummaryStore?
     private var lastSegments: [MenuBarSegment]?
     private var lastImageHeight: CGFloat?
     private var lastImageScale: CGFloat?
@@ -28,7 +29,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     var onPanelTabChange: ((PanelView.PanelTab) -> Void)?
 
     init(store: MonitorStore, settings: AppSettings, network: NetworkMonitor, processes: ProcessMonitor,
-         openSettings: @escaping () -> Void, openNetworkWindow: @escaping () -> Void, openDiskWindow: @escaping () -> Void = {}, tools: QuickToolsController? = nil) {
+         openSettings: @escaping () -> Void, openNetworkWindow: @escaping (NetworkPage?) -> Void, openDiskWindow: @escaping () -> Void = {},
+         tools: QuickToolsController? = nil, nodeSummary: NodeSummaryStore? = nil) {
         self.store = store
         self.settings = settings
         self.network = network
@@ -37,6 +39,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         self.onOpenNetworkWindow = openNetworkWindow
         self.onOpenDiskWindow = openDiskWindow
         self.tools = tools
+        self.nodeSummary = nodeSummary
         super.init()
 
         popover.behavior = .transient
@@ -137,9 +140,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
                       self?.popover.performClose(nil)
                       self?.onOpenSettings()
                   },
-                  openNetworkWindow: { [weak self] in
+                  openNetworkWindow: { [weak self] page in
                       self?.popover.performClose(nil)
-                      self?.onOpenNetworkWindow()
+                      self?.onOpenNetworkWindow(page)
                   },
                   openDiskWindow: { [weak self] in
                       self?.popover.performClose(nil)
@@ -151,7 +154,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
                       if tab == .network || tab == .tools { processes.stop() } else { processes.start() }
                       PerformanceLog.shared.event("panel_tab", ["tab": tab.rawValue])
                       onPanelTabChange?(tab)
-                  }, tools: tools)
+                  }, tools: tools, nodeSummary: nodeSummary)
     }
 
     func closePanel() { popover.performClose(nil) }

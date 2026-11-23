@@ -33,7 +33,7 @@ final class HistoryStore {
     var db: OpaquePointer?
     let url: URL
     /// 查看器（migrate: false）完全只读：不建表、不回填、不清理。
-    private let readOnly: Bool
+    let readOnly: Bool
 
     static let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
@@ -70,7 +70,7 @@ final class HistoryStore {
             """)
         if !ok { return nil }
         // 查看器进程只读：不建表、不回填，由主进程首次打开时完成。
-        if migrate, !createDailyApps(calendar: calendar) || !createLinkTables() || !createDiskTables() { return nil }
+        if migrate, !createDailyApps(calendar: calendar) || !createLinkTables() || !createDiskTables() || !createNodeTables() { return nil }
     }
 
     /// 首次建 daily_apps 时，在同一事务里按本地日把现有分钟明细回填一次（旧库升级当天不少算）；表已存在则不回填。
@@ -233,6 +233,7 @@ final class HistoryStore {
         guard !readOnly else { return }
         pruneLinks(now: now, calendar: calendar)
         pruneDisk(nowMinute: nowMinute, now: now, calendar: calendar)
+        pruneNodes(now: now, calendar: calendar)
         if let s = prepare("DELETE FROM traffic WHERE minute < ?") {
             sqlite3_bind_int64(s, 1, Int64(nowMinute - HistoryStore.retentionMinutes)); sqlite3_step(s); sqlite3_finalize(s)
         }
@@ -245,6 +246,7 @@ final class HistoryStore {
     func clearAll() {
         clearLinks()
         clearDisk()
+        clearNodes()
         exec("DELETE FROM traffic; DELETE FROM apps; DELETE FROM alerts; DELETE FROM daily_physical; DELETE FROM daily_apps; VACUUM;")
     }
 
