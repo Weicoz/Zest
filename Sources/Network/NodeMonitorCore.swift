@@ -403,7 +403,9 @@ struct NodeTopology: Equatable, Sendable {
     var groupsByName: [String: ProxyGroupInfo]
     var leafGroups: [NodeKey: [String]]
 
-    init(payload: BettboxProxiesPayload) {
+    /// - Parameter groupOrder: 从 `config.yaml` 的 `proxy-groups` 解析出的策略组名称顺序。
+    ///   用于补齐 `GLOBAL.all` 缺失或未包含的策略组；缺省时行为与旧版一致（仅 `GLOBAL.all` + 名称兜底）。
+    init(payload: BettboxProxiesPayload, groupOrder: [String] = []) {
         self.raw = payload.proxies
         var leavesMap: [NodeKey: ProxyEntry] = [:]
         var byName: [String: NodeKey] = [:]
@@ -435,8 +437,8 @@ struct NodeTopology: Equatable, Sendable {
         var groupMap: [String: ProxyGroupInfo] = [:]
         var membership: [NodeKey: [String]] = [:]
 
-        for name in payload.proxies.keys.sorted() {
-            guard name != "GLOBAL", let entry = payload.proxies[name], let members = entry.all else { continue }
+        for name in Self.groupOrdering(payload: payload, groupOrder: groupOrder) {
+            guard let entry = payload.proxies[name], let members = entry.all else { continue }
             var visited = Set<String>()
             let resolved = resolveLeaves(of: name, visited: &visited)
             let info = ProxyGroupInfo(name: name, type: entry.type, now: entry.now, directMembers: members, resolvedLeaves: resolved)
@@ -446,9 +448,33 @@ struct NodeTopology: Equatable, Sendable {
                 membership[leaf, default: []].append(name)
             }
         }
+        // 叶节点所属分组同样按拓扑顺序排列（resolveLeaves 返回 Set，顺序不稳定）。
+        let orderIndex = Dictionary(uniqueKeysWithValues: groupList.enumerated().map { ($1.name, $0) })
         self.groups = groupList
         self.groupsByName = groupMap
-        self.leafGroups = membership
+        self.leafGroups = membership.mapValues { names in
+            names.sorted { (orderIndex[$0] ?? .max) < (orderIndex[$1] ?? .max) }
+        }
+    }
+
+    /// 策略组展示顺序，与 Bettbox / Clash 原序一致：
+    /// ① `GLOBAL.all` 中真实策略组的首次出现顺序；
+    /// ② 调用方传入的 `config.yaml` `proxy-groups` 顺序，补齐 `GLOBAL.all` 缺失或未包含的组；
+    /// ③ 仍未覆盖的策略组按名称排序兜底。
+    static func groupOrdering(payload: BettboxProxiesPayload, groupOrder: [String] = []) -> [String] {
+        func isRealGroup(_ name: String) -> Bool {
+            name != "GLOBAL" && payload.proxies[name]?.all != nil
+        }
+        var ordered: [String] = []
+        var seen = Set<String>()
+        for name in payload.proxies["GLOBAL"]?.all ?? [] where isRealGroup(name) {
+            if seen.insert(name).inserted { ordered.append(name) }
+        }
+        for name in groupOrder where isRealGroup(name) {
+            if seen.insert(name).inserted { ordered.append(name) }
+        }
+        ordered.append(contentsOf: payload.proxies.keys.filter { isRealGroup($0) && !seen.contains($0) }.sorted())
+        return ordered
     }
 
     /// 沿策略组的 `now` 指针穿透嵌套组，解析当前实际出站的叶节点（遇到 DIRECT/REJECT/环 返回 nil）。

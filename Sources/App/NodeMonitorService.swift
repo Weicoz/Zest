@@ -62,7 +62,6 @@ final class NodeMonitorService: @unchecked Sendable {
 
     /// 唯一后台节拍：每 60 秒合并唤醒一次（带 5 秒 leeway 供 macOS 合并系统唤醒）。
     static let baseTimerIntervalSeconds = 60
-    static let watchedGroupIntervalSeconds: TimeInterval = 5 * 60
     static let reloadStormSuppressSeconds: TimeInterval = 30
     static let maxConcurrency = 4
     static let interProbeDelayNs: UInt64 = 120_000_000
@@ -77,6 +76,12 @@ final class NodeMonitorService: @unchecked Sendable {
         var groupAlertEnabled: Bool = true
         var timeoutMs: Int = BettboxClient.defaultProbeTimeoutMs
         var probeURL: String = BettboxClient.defaultProbeURL
+        /// 分组当前出口监测周期（分钟），与 60 秒主节拍共用。
+        var watchIntervalMinutes: Int = AppSettings.defaultNodeGroupWatchIntervalMinutes
+        /// 读取哪一个本机客户端的配置（节点监测与链路监测共用）。
+        var source: ProxyClientSource = .bettbox
+        /// `source == .custom` 时用户指定的本机 config.yaml 路径。
+        var customConfigPath: String = ""
     }
 
     private let queue = DispatchQueue(label: "app.zest.nodemonitor", qos: .utility)
@@ -100,6 +105,7 @@ final class NodeMonitorService: @unchecked Sendable {
     private var lastConfigFingerprint = ""
     private var cachedProfile = BettboxProfileInfo.fallback
     private var cachedClient: Result<BettboxClient, BettboxConfigError>?
+    private var watchedDirectoryPath: String?
 
     private var reloadSuppressUntil: Date = .distantPast
     private var lastPassiveAt: Date = .distantPast
@@ -135,17 +141,34 @@ final class NodeMonitorService: @unchecked Sendable {
     }
 
     func updateConfig(activeEnabled: Bool, intervalMinutes: Int, scopes: [String: NodeProbeScope],
-                      groupAlertEnabled: Bool = true) {
+                      groupAlertEnabled: Bool = true,
+                      watchIntervalMinutes: Int = AppSettings.defaultNodeGroupWatchIntervalMinutes,
+                      source: ProxyClientSource = .bettbox,
+                      customConfigPath: String = "") {
         queue.async { [self] in
             let next = Config(activeEnabled: activeEnabled,
                               intervalMinutes: max(intervalMinutes, 1),
                               scopes: scopes,
                               groupAlertEnabled: groupAlertEnabled,
                               timeoutMs: BettboxClient.defaultProbeTimeoutMs,
-                              probeURL: BettboxClient.defaultProbeURL)
+                              probeURL: BettboxClient.defaultProbeURL,
+                              watchIntervalMinutes: max(watchIntervalMinutes, 1),
+                              source: source,
+                              customConfigPath: customConfigPath)
             let wasEnabled = config.activeEnabled
             let oldScopes = config.scopes
+            let oldWatchInterval = config.watchIntervalMinutes
+            let oldSource = config.source
+            let oldCustomPath = config.customConfigPath
             config = next
+
+            // 配置源或自定义路径变化：配置目录可能换了，重建 kqueue 监听并立刻重解析配置。
+            if oldSource != next.source || oldCustomPath != next.customConfigPath {
+                stopDirectoryWatcher()
+                lastConfigFingerprint = ""
+                refreshConfigCacheIfNeeded()
+                if enabled { startDirectoryWatcher() }
+            }
 
             let curProfileId = cachedProfile.id
             let oldWatched = oldScopes[curProfileId]?.watchedGroups ?? []
@@ -167,6 +190,9 @@ final class NodeMonitorService: @unchecked Sendable {
             if next.activeEnabled && enabled && !paused &&
                 (!wasEnabled || oldBulk?.groups != newBulk?.groups || oldBulk?.nodes != newBulk?.nodes) {
                 lastActiveAt = .distantPast
+            }
+            if oldWatchInterval != next.watchIntervalMinutes && newWatched.isEmpty == false {
+                lastWatchAt = .distantPast
             }
             if enabled && !paused {
                 tick()
@@ -326,7 +352,7 @@ final class NodeMonitorService: @unchecked Sendable {
 
     private func performPanelSummaryRefresh() {
         refreshConfigCacheIfNeeded()
-        let clientRes = cachedClient ?? BettboxClient.load()
+        let clientRes = cachedClient ?? BettboxClient.load(source: config.source, customPath: config.customConfigPath)
         switch clientRes {
         case .failure(.missing):
             publishSummary(status: .configMissing, topology: nil, force: true)
@@ -344,7 +370,7 @@ final class NodeMonitorService: @unchecked Sendable {
                 self.queue.async {
                     switch result {
                     case .available(let payload):
-                        let topo = NodeTopology(payload: payload)
+                        let topo = NodeTopology(payload: payload, groupOrder: client.groupOrder)
                         self.lastTopology = topo
                         self.publishSummary(status: .available, topology: topo, force: true)
                     case .notRunning: self.publishSummary(status: .notRunning, topology: nil, force: true)
@@ -377,12 +403,18 @@ final class NodeMonitorService: @unchecked Sendable {
         timer = nil
     }
 
-    /// 使用内核 kqueue vnode 监听 Bettbox 配置目录，切换配置秒级感知，空闲期 0 CPU。
+    /// 当前来源的配置目录（随来源/自定义路径变化）。
+    private var currentConfigDirectoryPath: String? {
+        BettboxClient.configDirectory(source: config.source, customPath: config.customConfigPath)?.path
+    }
+
+    /// 使用内核 kqueue vnode 监听当前来源的配置目录，切换配置秒级感知，空闲期 0 CPU。
     private func startDirectoryWatcher() {
         guard dirMonitor == nil else { return }
-        let path = BettboxClient.appSupportDirectory.path
+        guard let path = currentConfigDirectoryPath else { return }
         let fd = open(path, O_EVTONLY)
         guard fd >= 0 else { return }
+        watchedDirectoryPath = path
         let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename], queue: queue)
         source.setEventHandler { [weak self] in
             self?.scheduleConfigChangeCheck()
@@ -401,6 +433,7 @@ final class NodeMonitorService: @unchecked Sendable {
             m.cancel()
             dirMonitor = nil
         }
+        watchedDirectoryPath = nil
     }
 
     private func scheduleConfigChangeCheck() {
@@ -461,14 +494,33 @@ final class NodeMonitorService: @unchecked Sendable {
 
     @discardableResult
     private func refreshConfigCacheIfNeeded() -> Bool {
-        let fp = BettboxClient.configFingerprint()
+        let source = config.source
+        let customPath = config.customConfigPath
+        let fp = BettboxClient.configFingerprint(forSource: source, customPath: customPath)
         if fp == lastConfigFingerprint && cachedClient != nil {
             return false
         }
         let hadPrevious = !lastConfigFingerprint.isEmpty
         lastConfigFingerprint = fp
-        cachedProfile = BettboxClient.loadProfile()
-        cachedClient = BettboxClient.load()
+        switch BettboxClient.resolve(source: source, customPath: customPath) {
+        case .success(let resolved):
+            cachedProfile = BettboxClient.profile(for: resolved)
+            cachedClient = BettboxClient.make(config: resolved.text,
+                                              source: resolved.source,
+                                              sourceId: resolved.sourceId,
+                                              configURL: resolved.configURL)
+        case .failure:
+            cachedProfile = source == .bettbox
+                ? .fallback
+                : BettboxProfileInfo(id: "\(source.sourceId):default", label: "")
+            cachedClient = BettboxClient.load(source: source, customPath: customPath)
+        }
+        // 配置目录可能随来源变化：指纹变化后按需重建目录监听。
+        if !lastConfigFingerprint.isEmpty, dirMonitor != nil,
+           watchedDirectoryPath != currentConfigDirectoryPath {
+            stopDirectoryWatcher()
+            if enabled { startDirectoryWatcher() }
+        }
         return hadPrevious
     }
 
@@ -476,7 +528,10 @@ final class NodeMonitorService: @unchecked Sendable {
     /// 彻底杜绝跨轨并发超上限、同叶重复发包与主被动双写，且每轨完成后立即接续排队的其他轨道。
     private func tick() {
         guard enabled, !paused else { return }
-        if dirMonitor == nil { startDirectoryWatcher() }
+        if dirMonitor == nil || watchedDirectoryPath != currentConfigDirectoryPath {
+            stopDirectoryWatcher()
+            startDirectoryWatcher()
+        }
         let now = Date()
         if refreshConfigCacheIfNeeded() {
             generation += 1
@@ -506,7 +561,8 @@ final class NodeMonitorService: @unchecked Sendable {
         // 1. 选定分组当前出口通道监测（5 分钟周期，极轻 1–5 个请求，最高优先级）。
         let watchDue = pendingManualWatch
             || (curScope.hasWatchedGroups && now >= nextActiveAllowedAt
-                && now.timeIntervalSince(lastWatchAt) >= Self.watchedGroupIntervalSeconds - 5)
+                && now.timeIntervalSince(lastWatchAt)
+                    >= TimeInterval(config.watchIntervalMinutes * 60 - 5))
         if watchDue && curScope.hasWatchedGroups {
             pendingManualWatch = false
             startWatchedGroupProbe(startedAt: now)
@@ -536,7 +592,7 @@ final class NodeMonitorService: @unchecked Sendable {
 
     private func startPassiveSync(startedAt: Date) {
         guard !passiveInFlight, !activeInFlight, !watchInFlight else { return }
-        guard case .success(let client) = cachedClient ?? BettboxClient.load() else { return }
+        guard case .success(let client) = cachedClient ?? BettboxClient.load(source: config.source, customPath: config.customConfigPath) else { return }
         guard ensureStore() != nil else { return }
         passiveInFlight = true
         lastPassiveAt = startedAt
@@ -565,7 +621,7 @@ final class NodeMonitorService: @unchecked Sendable {
                     return
                 }
                 let now = Date()
-                let topology = NodeTopology(payload: payload)
+                let topology = NodeTopology(payload: payload, groupOrder: client.groupOrder)
                 self.lastTopology = topology
                 // 在 queue 回调内实时读取最新 lastSeenMs 与 clearedAtMs，避免与中途完成的主动探测撞窗双写。
                 let extracted = PassiveHistoryExtractor.extractWithWatermarks(
@@ -596,7 +652,7 @@ final class NodeMonitorService: @unchecked Sendable {
 
     private func startWatchedGroupProbe(startedAt: Date) {
         guard !watchInFlight, !activeInFlight, !passiveInFlight else { return }
-        guard case .success(let client) = cachedClient ?? BettboxClient.load() else { return }
+        guard case .success(let client) = cachedClient ?? BettboxClient.load(source: config.source, customPath: config.customConfigPath) else { return }
         guard ensureStore() != nil else { return }
 
         let profile = cachedProfile
@@ -613,6 +669,8 @@ final class NodeMonitorService: @unchecked Sendable {
         let probeURL = config.probeURL
         let timeoutMs = config.timeoutMs
         let expectedFingerprint = lastConfigFingerprint
+        let fingerprintSource = config.source
+        let fingerprintPath = config.customConfigPath
 
         emitProgress(NodeProbeLiveProgress(
             runId: progRunId, phase: .checkingDirect, total: watched.count,
@@ -636,7 +694,8 @@ final class NodeMonitorService: @unchecked Sendable {
                     }
                 },
                 isStillValid: {
-                    !Task.isCancelled && BettboxClient.configFingerprint() == expectedFingerprint
+                    !Task.isCancelled && BettboxClient.configFingerprint(
+                        forSource: fingerprintSource, customPath: fingerprintPath) == expectedFingerprint
                 }
             )
             self.queue.async {
@@ -657,7 +716,11 @@ final class NodeMonitorService: @unchecked Sendable {
                         }
                     }
                     if !outcome.groupSamples.isEmpty,
-                       let failCounts = store.addGroupWatchSamples(outcome.groupSamples, calendar: self.calendar) {
+                       let failCounts = store.addGroupWatchSamples(
+                           outcome.groupSamples,
+                           calendar: self.calendar,
+                           continuityWindowMs: self.groupContinuityWindowMs
+                       ) {
                         flushed += outcome.groupSamples.count
                         if self.config.groupAlertEnabled {
                             for s in outcome.groupSamples where !s.ok {
@@ -680,6 +743,12 @@ final class NodeMonitorService: @unchecked Sendable {
                 self.tick()
             }
         }
+    }
+
+    /// 连续失败判定窗口：随用户探测间隔放大，避免 10/15/30 分钟周期被 20 分钟硬编码窗口清零。
+    private var groupContinuityWindowMs: Int64 {
+        max(HistoryStore.groupFailureContinuityWindowMs,
+            Int64(max(config.watchIntervalMinutes, 1)) * 4 * 60 * 1000)
     }
 
     private struct WatchedGroupRoundOutcome {
@@ -731,7 +800,7 @@ final class NodeMonitorService: @unchecked Sendable {
                 flushedSamples: 0, updatedAt: Date().timeIntervalSince1970
             ))
         }
-        let topology = NodeTopology(payload: payload)
+        let topology = NodeTopology(payload: payload, groupOrder: client.groupOrder)
         let plan = ActiveProbePlanner.planWatchedGroups(topology: topology, watchedGroups: watchedGroups)
         guard !plan.isEmpty else {
             return WatchedGroupRoundOutcome(topology: topology, finalProgress: NodeProbeLiveProgress(
@@ -872,7 +941,7 @@ final class NodeMonitorService: @unchecked Sendable {
     private func startActiveProbe(force: Bool, overrideScope: NodeProbeScope?, startedAt: Date) {
         guard !activeInFlight, !watchInFlight, !passiveInFlight else { return }
         guard force || config.activeEnabled else { return }
-        guard case .success(let client) = cachedClient ?? BettboxClient.load() else { return }
+        guard case .success(let client) = cachedClient ?? BettboxClient.load(source: config.source, customPath: config.customConfigPath) else { return }
         guard ensureStore() != nil else { return }
 
         let profile = cachedProfile
@@ -889,6 +958,8 @@ final class NodeMonitorService: @unchecked Sendable {
         let probeURL = config.probeURL
         let timeoutMs = config.timeoutMs
         let expectedFingerprint = lastConfigFingerprint
+        let fingerprintSource = config.source
+        let fingerprintPath = config.customConfigPath
 
         emitProgress(NodeProbeLiveProgress(
             runId: progRunId, phase: .checkingDirect, total: 0,
@@ -934,7 +1005,8 @@ final class NodeMonitorService: @unchecked Sendable {
                     }
                 },
                 isStillValid: {
-                    !Task.isCancelled && BettboxClient.configFingerprint() == expectedFingerprint
+                    !Task.isCancelled && BettboxClient.configFingerprint(
+                        forSource: fingerprintSource, customPath: fingerprintPath) == expectedFingerprint
                 }
             )
             self.queue.async {
@@ -1138,7 +1210,7 @@ final class NodeMonitorService: @unchecked Sendable {
                 flushedSamples: 0, updatedAt: Date().timeIntervalSince1970
             ))
         }
-        let topology = NodeTopology(payload: payload)
+        let topology = NodeTopology(payload: payload, groupOrder: client.groupOrder)
         // 默认自动联动纳入链式节点的前置 dialer-proxy 叶节点（含 ⛓ 中转节点）。
         let targets = ActiveProbePlanner.plan(topology: topology, scope: scope, includeChainUpstreams: true)
         guard !targets.isEmpty else {

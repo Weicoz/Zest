@@ -3,7 +3,7 @@
 //  Zest
 //
 //  网络窗口「节点」页：
-//  - 顶部置顶「分组出口监测」区块（选定分组每 5 分钟穿透检测当前出站节点，1d/7d/30d 服务通道连通率与断线标红）；
+//  - 顶部置顶「分组出口监测」区块（选定分组按用户设置的间隔穿透检测当前出站节点，1d/7d/30d 服务通道连通率与断线标红）；
 //  - 全量节点 1d/7d/30d 统计（严格三态、等权平均、低样本标注、按来源筛选「全部 / 仅主动」、链式前置对比）。
 //
 
@@ -298,7 +298,7 @@ struct NetworkNodesPage: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Text(L10n.text("nodes.footnote", defaultValue: "被动吸收每 60 秒清洗 30 秒内多组重复与超时边界假值，风暴期自动跳过；选定分组出口每 5 分钟独立检测并在连续 2 次超时后通知。未测节点单列，低样本标注次数。"))
+                Text(String(format: L10n.text("nodes.footnote", defaultValue: "被动吸收每 60 秒清洗 30 秒内多组重复与超时边界假值，风暴期自动跳过；选定分组出口每 %lld 分钟独立检测并在连续 2 次超时后通知。未测节点单列，低样本标注次数。"), Int64(settings.nodeGroupWatchIntervalMinutes)))
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
             }
@@ -322,7 +322,11 @@ struct NetworkNodesPage: View {
     }
 
     private func watchedGroupRows(scope: NodeProbeScope) -> [GroupWatchSummaryRecord] {
-        scope.watchedGroups.compactMap { gName in
+        // 置顶卡按策略组拓扑顺序展示，不再二次按勾选写入顺序或字母序打乱。
+        let known = Set(model.topology.groups.map(\.name))
+        let ordered = model.topology.groups.map(\.name).filter { scope.watchedGroups.contains($0) }
+            + scope.watchedGroups.filter { !known.contains($0) }
+        return ordered.compactMap { gName in
             let liveLeaf = model.topology.resolveCurrentLeaf(ofGroup: gName)
             if var rec = model.groupWatches[gName] {
                 if let liveLeaf {
@@ -342,7 +346,8 @@ struct NetworkNodesPage: View {
     private func watchedGroupsCard(items: [GroupWatchSummaryRecord], probingNames: Set<String>) -> some View {
         Card {
             CardHeader(symbol: "shield.checkered",
-                       title: L10n.text("nodes.watch.title", defaultValue: "分组当前出口监测（每 5 分钟）"),
+                       title: String(format: L10n.text("nodes.watch.title", defaultValue: "分组当前出口监测（每 %lld 分钟）"),
+                                     Int64(settings.nodeGroupWatchIntervalMinutes)),
                        tint: Palette.memory,
                        trailing: settings.nodeGroupAlertEnabled
                            ? L10n.text("nodes.watch.alertOn", defaultValue: "连续 2 次超时通知")
@@ -449,14 +454,15 @@ struct NetworkNodesPage: View {
     }
 
     private var statusReason: String? {
+        let name = model.clientName
         switch model.status {
         case .available: return nil
-        case .starting: return L10n.text("正在连接 Bettbox…")
-        case .notRunning: return L10n.text("Bettbox 未运行，或控制器无法连接")
-        case .configMissing: return L10n.text("找不到 Bettbox 配置，未读取节点")
-        case .nonLocalController: return L10n.text("Bettbox 控制器不是本机地址，为保护 secret 不连接")
-        case .authFailed: return L10n.text("Bettbox 控制器认证失败，请检查配置里的 secret")
-        case .decodeFailed: return L10n.text("无法解析 Bettbox 返回的节点数据")
+        case .starting: return String(format: L10n.text("nodes.client.connecting", defaultValue: "正在连接 %@…"), name)
+        case .notRunning: return String(format: L10n.text("nodes.client.notRunning", defaultValue: "%@ 未运行，或控制器无法连接"), name)
+        case .configMissing: return String(format: L10n.text("nodes.client.configMissing", defaultValue: "找不到 %@ 配置，未读取节点"), name)
+        case .nonLocalController: return String(format: L10n.text("nodes.client.nonLocal", defaultValue: "%@ 控制器不是本机地址，为保护 secret 不连接"), name)
+        case .authFailed: return String(format: L10n.text("nodes.client.authFailed", defaultValue: "%@ 控制器认证失败，请检查配置里的 secret"), name)
+        case .decodeFailed: return String(format: L10n.text("nodes.client.decodeFailed", defaultValue: "无法解析 %@ 返回的节点数据"), name)
         }
     }
 
@@ -472,7 +478,9 @@ struct NetworkNodesPage: View {
                 return String(format: L10n.text("nodes.active.both"), Int64(activeScope.watchedGroups.count), Int64(settings.nodeProbeIntervalMinutes))
             }
             if activeScope.hasWatchedGroups {
-                return String(format: L10n.text("nodes.active.watchOnly"), Int64(activeScope.watchedGroups.count))
+                return String(format: L10n.text("nodes.active.watchOnly"),
+                              Int64(activeScope.watchedGroups.count),
+                              Int64(settings.nodeGroupWatchIntervalMinutes))
             }
             if settings.nodeActiveProbeEnabled {
                 return String(format: L10n.text("nodes.active.on"), Int64(settings.nodeProbeIntervalMinutes))
@@ -729,7 +737,7 @@ private struct NodeLiveProbeBanner: View {
     }
 }
 
-// MARK: - 监测与主动探测配置弹窗（统一管理：分组出口 5 分钟监测 + 候选组批量探测）
+// MARK: - 监测与主动探测配置弹窗（统一管理：分组出口周期监测 + 候选组批量探测）
 
 private struct ActiveProbeConfigPopover: View {
     @Environment(\.dismiss) private var dismiss
@@ -762,7 +770,8 @@ private struct ActiveProbeConfigPopover: View {
             }
 
             Picker("", selection: $tab) {
-                Text(L10n.text("nodes.probe.tabWatch", defaultValue: "分组当前出口 (5分)")).tag(0)
+                Text(String(format: L10n.text("nodes.probe.tabWatch", defaultValue: "分组当前出口 (%lld分)"),
+                            Int64(settings.nodeGroupWatchIntervalMinutes))).tag(0)
                 Text(L10n.text("nodes.probe.tabBulk", defaultValue: "候选组全量测速")).tag(1)
             }
             .pickerStyle(.segmented).labelsHidden()
@@ -770,7 +779,19 @@ private struct ActiveProbeConfigPopover: View {
             if tab == 0 {
                 Toggle(L10n.text("nodes.watch.alertToggle", defaultValue: "连续 2 次超时发送断线系统通知"), isOn: $settings.nodeGroupAlertEnabled)
                     .font(.system(size: 12))
-                Text(L10n.text("nodes.watch.desc", defaultValue: "每 5 分钟穿透检测选定分组当前实际出站的叶节点（同叶合并只测 1 次），切换节点后连通率连续记在该分组名下。"))
+                HStack {
+                    Text(L10n.text("nodes.probe.interval", defaultValue: "探测间隔"))
+                        .font(.system(size: 12))
+                    Spacer()
+                    Picker("", selection: $settings.nodeGroupWatchIntervalMinutes) {
+                        ForEach(AppSettings.nodeGroupWatchIntervalChoices, id: \.self) { m in
+                            Text(String(format: L10n.text("%lld 分钟"), Int64(m))).tag(m)
+                        }
+                    }
+                    .labelsHidden().frame(width: 110)
+                }
+                Text(String(format: L10n.text("nodes.watch.desc", defaultValue: "每 %lld 分钟穿透检测选定分组当前实际出站的叶节点（同叶合并只测 1 次），切换节点后连通率连续记在该分组名下。"),
+                            Int64(settings.nodeGroupWatchIntervalMinutes)))
                     .font(.system(size: 10.5)).foregroundStyle(.secondary)
             } else {
                 Toggle(L10n.text("nodes.probe.enable", defaultValue: "启用定时主动探测"), isOn: $settings.nodeActiveProbeEnabled)
@@ -808,7 +829,7 @@ private struct ActiveProbeConfigPopover: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
                     if filteredGroups.isEmpty {
-                        Text(L10n.text("nodes.probe.noGroups", defaultValue: "当前 Bettbox 未返回可用策略组"))
+                        Text(String(format: L10n.text("nodes.probe.noGroups", defaultValue: "当前 %@ 未返回可用策略组"), model.clientName))
                             .font(.system(size: 11)).foregroundStyle(.secondary).padding(.vertical, 8)
                     } else {
                         ForEach(filteredGroups) { g in
@@ -820,7 +841,8 @@ private struct ActiveProbeConfigPopover: View {
                                     set: { checked in
                                         var next = watchedSet
                                         if checked { next.insert(g.name) } else { next.remove(g.name) }
-                                        settings.setScope(NodeProbeScope(groups: scope.groups, nodes: scope.nodes, watchedGroups: next.sorted()),
+                                        settings.setScope(NodeProbeScope(groups: scope.groups, nodes: scope.nodes,
+                                                                  watchedGroups: model.topology.groups.map(\.name).filter { next.contains($0) }),
                                                           forProfile: profileId)
                                     }
                                 )) {
@@ -840,7 +862,7 @@ private struct ActiveProbeConfigPopover: View {
                                     set: { checked in
                                         var next = bulkSet
                                         if checked { next.insert(g.name) } else { next.remove(g.name) }
-                                        settings.setScope(NodeProbeScope(groups: next.sorted(), nodes: scope.nodes, watchedGroups: scope.watchedGroups),
+                                        settings.setScope(NodeProbeScope(groups: model.topology.groups.map(\.name).filter { next.contains($0) }, nodes: scope.nodes, watchedGroups: scope.watchedGroups),
                                                           forProfile: profileId)
                                     }
                                 )) {
@@ -887,7 +909,7 @@ private struct ActiveProbeConfigPopover: View {
             }
             .font(.system(size: 11))
 
-            Text(L10n.text("nodes.probe.note", defaultValue: "勾选按 Bettbox 配置独立保存；链式组主动测速自动联动其前置中转节点，同落地串行限流，超时 4000ms。"))
+            Text(String(format: L10n.text("nodes.probe.note", defaultValue: "勾选按 %@ 配置独立保存；链式组主动测速自动联动其前置中转节点，同落地串行限流，超时 4000ms。"), model.clientName))
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
         }
         .padding(14)
@@ -1792,6 +1814,8 @@ private struct NodeTrendRuleRowEditor: View {
 
     private var groupPickerPopover: some View {
         let selected = Set(rule.bettboxGroups)
+        let topologyOrder = model.topology.groups.map(\.name)
+        let known = Set(topologyOrder)
         return VStack(alignment: .leading, spacing: 6) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
@@ -1801,7 +1825,9 @@ private struct NodeTrendRuleRowEditor: View {
                             set: { on in
                                 var next = selected
                                 if on { next.insert(g.name) } else { next.remove(g.name) }
-                                rule.bettboxGroups = next.sorted()
+                                // 按策略组拓扑顺序保存，未知旧条目追加在末尾。
+                                rule.bettboxGroups = topologyOrder.filter { next.contains($0) }
+                                    + next.filter { !known.contains($0) }.sorted()
                             }
                         )) {
                             Text("\(g.name) (\(g.resolvedLeaves.count))").lineLimit(1)

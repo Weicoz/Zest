@@ -112,7 +112,7 @@ struct NetworkLiveLinksPage: View {
                     row(L10n.text("总量差额"), snap.unattributed)
                 }
                 .frame(height: 60)
-                Text(L10n.text("点选一条规则，只统计该规则。域名记录保留 30 天，规则、出口、应用的日汇总永久保留。总量取 Bettbox 自报值，各行之和与总量的差额记为“未归属”。"))
+                Text(L10n.text("点选一条规则，只统计该规则。域名记录保留 30 天，规则、出口、应用的日汇总永久保留。总量取客户端自报值，各行之和与总量的差额记为“未归属”。"))
                     .font(.system(size: 10)).foregroundStyle(.tertiary)
             }
             .padding(20)
@@ -135,14 +135,15 @@ struct NetworkLiveLinksPage: View {
     }
 
     private var reason: String? {
+        let name = BettboxClient.currentDisplayName()
         switch service.status {
         case .available: return nil
-        case .starting: return L10n.text("正在连接 Bettbox…")
-        case .notRunning: return L10n.text("Bettbox 未运行，或控制器无法连接")
-        case .configMissing: return L10n.text("找不到 Bettbox 配置，未读取链路")
-        case .nonLocalController: return L10n.text("Bettbox 控制器不是本机地址，为保护 secret 不连接")
-        case .authFailed: return L10n.text("Bettbox 控制器认证失败，请检查配置里的 secret")
-        case .decodeFailed: return L10n.text("无法解析 Bettbox 返回的连接数据")
+        case .starting: return String(format: L10n.text("nodes.client.connecting", defaultValue: "正在连接 %@…"), name)
+        case .notRunning: return String(format: L10n.text("nodes.client.notRunning", defaultValue: "%@ 未运行，或控制器无法连接"), name)
+        case .configMissing: return String(format: L10n.text("links.client.configMissing", defaultValue: "找不到 %@ 配置，未读取链路"), name)
+        case .nonLocalController: return String(format: L10n.text("nodes.client.nonLocal", defaultValue: "%@ 控制器不是本机地址，为保护 secret 不连接"), name)
+        case .authFailed: return String(format: L10n.text("nodes.client.authFailed", defaultValue: "%@ 控制器认证失败，请检查配置里的 secret"), name)
+        case .decodeFailed: return String(format: L10n.text("links.client.decodeFailed", defaultValue: "无法解析 %@ 返回的连接数据"), name)
         }
     }
 

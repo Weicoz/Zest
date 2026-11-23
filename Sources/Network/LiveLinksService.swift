@@ -40,7 +40,9 @@ final class LiveLinksService: ObservableObject {
 
     private func tick(_ gen: Int) async {
         let client: BettboxClient
-        switch BettboxClient.load() {
+        let source = AppSettings.currentProxySource()
+        let customPath = AppSettings.currentProxyCustomPath()
+        switch BettboxClient.load(source: source, customPath: customPath) {
         case .success(let c): client = c
         case .failure(.missing): return fail(.configMissing, gen)
         case .failure(.nonLocal): return fail(.nonLocalController, gen)

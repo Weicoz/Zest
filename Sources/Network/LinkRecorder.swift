@@ -2,7 +2,8 @@
 //  LinkRecorder.swift
 //  Zest
 //
-//  主进程的链路采样：随 NetworkMonitor 的节奏（后台 8 秒、窗口可见 2 秒）读 Bettbox，
+//  主进程的链路采样：随 NetworkMonitor 的节奏（后台 8 秒、窗口可见 2 秒）读取当前代理客户端
+//  （Bettbox / Clash Verge / Mihomo Party / FlClash / ClashX / mihomo / 自定义）的配置，
 //  把账本增量写入历史存储。读不到配置不轮询。除 poll 的网络等待外，状态只在传入的串行队列上访问。
 //  secret 只在 BettboxClient 内存里，不进库、日志与文件。
 //
@@ -26,7 +27,11 @@ final class LinkRecorder: @unchecked Sendable {
     /// 在 queue 上调用。上一次请求未返回时跳过本轮。
     func poll(store: HistoryStore?) {
         guard store != nil, !inFlight else { return }
-        guard case .success(let client) = BettboxClient.load() else { return ledger.interrupt() }
+        let source = AppSettings.currentProxySource()
+        let customPath = AppSettings.currentProxyCustomPath()
+        guard case .success(let client) = BettboxClient.load(source: source, customPath: customPath) else {
+            return ledger.interrupt()
+        }
         inFlight = true
         let gen = generation
         Task { [self] in

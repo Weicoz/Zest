@@ -70,6 +70,8 @@ struct NodeDetailComparison: Equatable {
 private struct NodeRefreshBundle: Sendable {
     var status: NodeMonitorStatus
     var profile: BettboxProfileInfo
+    /// 当前代理客户端展示名（Bettbox / Clash Verge / Mihomo Party / ClashX / Clash / Mihomo …）。
+    var clientName: String
     var topology: NodeTopology
     var summaries: [NodeKey: NodeSummaryRecord]
     var groupWatches: [String: GroupWatchSummaryRecord]
@@ -93,26 +95,35 @@ private final class NodeHistoryReader: @unchecked Sendable {
 
     func currentFingerprint() async -> String {
         await withCheckedContinuation { cont in
-            queue.async { cont.resume(returning: BettboxClient.configFingerprint()) }
+            queue.async {
+                // 指纹必须跟随当前设置来源，切换来源或自定义路径时立刻变化并触发刷新。
+                let source = AppSettings.currentProxySource()
+                let customPath = AppSettings.currentProxyCustomPath()
+                cont.resume(returning: BettboxClient.configFingerprint(forSource: source, customPath: customPath))
+            }
         }
     }
 
     func fetchBundle(sourceFilter: NodeSourceFilter, now: Date, calendar: Calendar) async -> NodeRefreshBundle? {
-        let (profile, clientResult, summaries, groupWatches, emptyHours):
-            (BettboxProfileInfo, Result<BettboxClient, BettboxConfigError>, [NodeKey: NodeSummaryRecord], [String: GroupWatchSummaryRecord], [NodeHourPoint]) =
+        let (profile, clientResult, groupOrder, clientName, summaries, groupWatches, emptyHours):
+            (BettboxProfileInfo, Result<BettboxClient, BettboxConfigError>, [String], String, [NodeKey: NodeSummaryRecord], [String: GroupWatchSummaryRecord], [NodeHourPoint]) =
             await withCheckedContinuation { cont in
                 queue.async { [self] in
-                    let fp = BettboxClient.configFingerprint()
+                    let source = AppSettings.currentProxySource()
+                    let customPath = AppSettings.currentProxyCustomPath()
+                    let fp = BettboxClient.configFingerprint(forSource: source, customPath: customPath)
                     if fp != cachedFingerprint || cachedClient == nil {
                         cachedFingerprint = fp
-                        cachedProfile = BettboxClient.loadProfile()
-                        cachedClient = BettboxClient.load()
+                        cachedProfile = BettboxClient.profile(source: source, customPath: customPath)
+                        cachedClient = BettboxClient.load(source: source, customPath: customPath)
                     }
                     if store == nil { store = HistoryStore(migrate: false, calendar: calendar) }
                     let sum = store?.nodeSummaries(sourceFilter: sourceFilter, now: now, calendar: calendar) ?? [:]
                     let gw = store?.groupWatchSummaries(profileId: cachedProfile.id, now: now, calendar: calendar) ?? [:]
                     let hours = Self.emptyHourSlots(count: 24, now: now, calendar: calendar)
-                    cont.resume(returning: (cachedProfile, cachedClient ?? .failure(.missing), sum, gw, hours))
+                    let order = (try? cachedClient?.get())?.groupOrder ?? []
+                    let name = BettboxClient.resolvedDisplayName(source: source, customPath: customPath)
+                    cont.resume(returning: (cachedProfile, cachedClient ?? .failure(.missing), order, name, sum, gw, hours))
                 }
             }
 
@@ -138,11 +149,13 @@ private final class NodeHistoryReader: @unchecked Sendable {
             }
         }
 
+        let order = groupOrder
         let topology: NodeTopology = await withCheckedContinuation { cont in
-            queue.async { cont.resume(returning: NodeTopology(payload: payload)) }
+            queue.async { cont.resume(returning: NodeTopology(payload: payload, groupOrder: order)) }
         }
-        return NodeRefreshBundle(status: status, profile: profile, topology: topology,
-                                 summaries: summaries, groupWatches: groupWatches, emptyHours: emptyHours)
+        return NodeRefreshBundle(status: status, profile: profile, clientName: clientName,
+                                 topology: topology, summaries: summaries,
+                                 groupWatches: groupWatches, emptyHours: emptyHours)
     }
 
     func readAllTrendGrid(range: NodeStatsRange, sourceFilter: NodeSourceFilter,
@@ -232,6 +245,8 @@ private final class NodeHistoryReader: @unchecked Sendable {
 final class NodeMonitorModel: ObservableObject {
     @Published private(set) var status: NodeMonitorStatus = .starting
     @Published private(set) var profile: BettboxProfileInfo = .fallback
+    /// 当前代理客户端展示名，首帧刷新前先用默认品牌名占位。
+    @Published private(set) var clientName: String = "Bettbox"
     @Published private(set) var topology = NodeTopology(payload: BettboxProxiesPayload())
     @Published private(set) var rows: [NodeDisplayRow] = []
     @Published private(set) var rowsByKey: [NodeKey: NodeDisplayRow] = [:]
@@ -489,6 +504,7 @@ final class NodeMonitorModel: ObservableObject {
 
         self.status = bundle.status
         self.profile = bundle.profile
+        self.clientName = bundle.clientName
         self.topology = bundle.topology
         self.rows = built
         self.rowsByKey = byKey

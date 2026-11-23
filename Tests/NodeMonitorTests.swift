@@ -636,3 +636,157 @@ final class NodeHistoryStoreTests: XCTestCase {
                        NodeProbeScope(groups: ["ChainGroup"], nodes: ["NodeA"], watchedGroups: ["OpenAI"]))
     }
 }
+
+// MARK: - 策略组拓扑顺序（需求 1）
+
+final class NodeTopologyOrderTests: XCTestCase {
+    private func leaf(_ name: String) -> ProxyEntry { ProxyEntry(name: name, type: "AnyTLS") }
+
+    private func group(_ name: String, _ members: [String], now: String? = nil) -> ProxyEntry {
+        ProxyEntry(name: name, type: "Selector", all: members, now: now)
+    }
+
+    func testGroupOrderFollowsGlobalAllFirstAppearance() {
+        let payload = BettboxProxiesPayload(proxies: [
+            "GLOBAL": group("GLOBAL", ["Zeta", "DIRECT", "Alpha", "Zeta"]),
+            "Zeta": group("Zeta", ["N1"]),
+            "Alpha": group("Alpha", ["N2"]),
+            "Beta": group("Beta", ["N1"]),
+            "N1": leaf("N1"),
+            "N2": leaf("N2"),
+            "DIRECT": ProxyEntry(name: "DIRECT", type: "Direct")
+        ])
+        let topo = NodeTopology(payload: payload)
+
+        // GLOBAL 自身不展示，内置 DIRECT 不是策略组；未被 GLOBAL 覆盖的 Beta 名称兜底排在最后。
+        XCTAssertEqual(topo.groups.map(\.name), ["Zeta", "Alpha", "Beta"])
+        XCTAssertNil(topo.groupsByName["GLOBAL"])
+        XCTAssertNil(topo.groupsByName["DIRECT"])
+    }
+
+    func testGroupOrderParameterFillsGroupsMissingFromGlobal() {
+        let payload = BettboxProxiesPayload(proxies: [
+            "GLOBAL": group("GLOBAL", ["Zeta"]),
+            "Zeta": group("Zeta", ["N1"]),
+            "Beta": group("Beta", ["N1"]),
+            "Alpha": group("Alpha", ["N1"]),
+            "Gamma": group("Gamma", ["N1"]),
+            "N1": leaf("N1")
+        ])
+        // config.yaml 的 proxy-groups 顺序补齐 GLOBAL.all 未包含的组，最后仍有 Gamma 按名称兜底。
+        let topo = NodeTopology(payload: payload, groupOrder: ["Beta", "Alpha", "Zeta", "MissingGroup"])
+        XCTAssertEqual(topo.groups.map(\.name), ["Zeta", "Beta", "Alpha", "Gamma"])
+    }
+
+    func testGroupOrderFallsBackToNameSortWithoutAnySignal() {
+        let payload = BettboxProxiesPayload(proxies: [
+            "bGroup": group("bGroup", ["N1"]),
+            "aGroup": group("aGroup", ["N1"]),
+            "cGroup": group("cGroup", ["N1"]),
+            "N1": leaf("N1")
+        ])
+        XCTAssertEqual(NodeTopology(payload: payload).groups.map(\.name), ["aGroup", "bGroup", "cGroup"])
+        XCTAssertEqual(NodeTopology.groupOrdering(payload: payload, groupOrder: []), ["aGroup", "bGroup", "cGroup"])
+    }
+
+    func testLeafGroupsKeepTopologyOrder() {
+        let payload = BettboxProxiesPayload(proxies: [
+            "GLOBAL": group("GLOBAL", ["Zeta", "Alpha"]),
+            "Zeta": group("Zeta", ["Shared", "ZOnly"]),
+            "Alpha": group("Alpha", ["Shared", "AOnly"]),
+            "Shared": leaf("Shared"),
+            "ZOnly": leaf("ZOnly"),
+            "AOnly": leaf("AOnly")
+        ])
+        let topo = NodeTopology(payload: payload)
+        XCTAssertEqual(topo.leafGroups[NodeKey(name: "Shared", dialer: "")], ["Zeta", "Alpha"])
+        XCTAssertEqual(topo.leafGroups[NodeKey(name: "ZOnly", dialer: "")], ["Zeta"])
+        XCTAssertEqual(topo.leafGroups[NodeKey(name: "AOnly", dialer: "")], ["Alpha"])
+    }
+}
+
+// MARK: - 分组当前出口间隔（需求 3）
+
+final class NodeGroupWatchIntervalTests: XCTestCase {
+    func testIntervalPersistsWhitelistAndLegacyPayloadFallsBackToFive() {
+        let suite = "app.zest.test.watchinterval.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suite) else { return XCTFail("no suite") }
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let settings = AppSettings(defaults: defaults)
+        XCTAssertEqual(settings.nodeGroupWatchIntervalMinutes, AppSettings.defaultNodeGroupWatchIntervalMinutes)
+        settings.nodeGroupWatchIntervalMinutes = 15
+        XCTAssertEqual(AppSettings(defaults: defaults).nodeGroupWatchIntervalMinutes, 15)
+        XCTAssertEqual(defaults.integer(forKey: "nodeGroupWatchIntervalMinutes"), 15)
+
+        defaults.set(7, forKey: "nodeGroupWatchIntervalMinutes")
+        XCTAssertEqual(AppSettings(defaults: defaults).nodeGroupWatchIntervalMinutes, 5)
+        XCTAssertEqual(AppSettings.nodeGroupWatchIntervalChoices, [1, 2, 5, 10, 15, 30])
+    }
+
+    func testWatchIntervalAndSourceSyncAcrossProcessesWithLegacyPayloadCompat() {
+        let suiteA = "app.zest.test.watchsync.a.\(UUID().uuidString)"
+        let suiteB = "app.zest.test.watchsync.b.\(UUID().uuidString)"
+        guard let dA = UserDefaults(suiteName: suiteA), let dB = UserDefaults(suiteName: suiteB) else {
+            return XCTFail("no suites")
+        }
+        defer {
+            dA.removePersistentDomain(forName: suiteA)
+            dB.removePersistentDomain(forName: suiteB)
+        }
+
+        // 旧版 payload：没有 watchIntervalMinutes / proxyClientSource / proxyCustomConfigPath，解码不能失败。
+        let legacy = #"{"enabled":true,"intervalMinutes":15,"scopes":{},"groupAlertEnabled":false}"#
+        let receiver = AppSettings(defaults: dB)
+        receiver.reloadNodeProbeSettings(Notification(name: AppSettings.nodeProbeSettingsChangedNotification,
+                                                      object: nil, userInfo: ["payload": legacy]))
+        XCTAssertEqual(receiver.nodeGroupWatchIntervalMinutes, 5)
+        XCTAssertEqual(receiver.proxyClientSource, .auto)
+        XCTAssertEqual(receiver.proxyCustomConfigPath, "")
+
+        // 新字段双进程同步。
+        let sender = AppSettings(defaults: dA)
+        sender.nodeGroupWatchIntervalMinutes = 30
+        sender.proxyClientSource = .mihomoParty
+        sender.proxyCustomConfigPath = "~/custom/config.yaml"
+        receiver.reloadNodeProbeSettings(Notification(name: AppSettings.nodeProbeSettingsChangedNotification,
+                                                      object: nil, userInfo: sender.nodeProbeUserInfo()))
+        XCTAssertEqual(receiver.nodeGroupWatchIntervalMinutes, 30)
+        XCTAssertEqual(receiver.proxyClientSource, .mihomoParty)
+        XCTAssertEqual(receiver.proxyCustomConfigPath, "~/custom/config.yaml")
+        XCTAssertEqual(AppSettings.currentProxySource(defaults: dA), .mihomoParty)
+        XCTAssertEqual(AppSettings.currentProxyCustomPath(defaults: dA), "~/custom/config.yaml")
+    }
+
+    func testContinuityWindowScalesWithProbeInterval() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("zest-watch-\(UUID().uuidString).sqlite")
+        defer { ["", "-wal", "-shm"].forEach { try? FileManager.default.removeItem(atPath: url.path + $0) } }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        let store = try XCTUnwrap(HistoryStore(url: url, calendar: cal))
+        let at: (Int, Int) -> Int64 = { h, m in
+            let d = cal.date(from: DateComponents(year: 2026, month: 11, day: 23, hour: h, minute: m))!
+            return Int64((d.timeIntervalSince1970 * 1000.0).rounded())
+        }
+        func samples(_ group: String, _ tsMs: Int64) -> [GroupWatchSample] {
+            [GroupWatchSample(tsMs: tsMs, profileId: "p1", groupName: group,
+                              currentNode: "NodeA", dialer: "", delayMs: 0, ok: false)]
+        }
+
+        // 30 分钟周期：连续两次失败间隔 30 分钟，若仍用 20 分钟硬编码窗口会被误判为不连续。
+        let window30 = max(HistoryStore.groupFailureContinuityWindowMs, Int64(30 * 4 * 60 * 1000))
+        XCTAssertEqual(store.addGroupWatchSamples(samples("Slow30", at(10, 0)), calendar: cal,
+                                                  continuityWindowMs: window30)?["Slow30"], 1)
+        XCTAssertEqual(store.addGroupWatchSamples(samples("Slow30", at(10, 30)), calendar: cal,
+                                                  continuityWindowMs: window30)?["Slow30"], 2)
+        // 15 分钟周期同理。
+        let window15 = max(HistoryStore.groupFailureContinuityWindowMs, Int64(15 * 4 * 60 * 1000))
+        XCTAssertEqual(store.addGroupWatchSamples(samples("Slow15", at(11, 0)), calendar: cal,
+                                                  continuityWindowMs: window15)?["Slow15"], 1)
+        XCTAssertEqual(store.addGroupWatchSamples(samples("Slow15", at(11, 15)), calendar: cal,
+                                                  continuityWindowMs: window15)?["Slow15"], 2)
+        // 同一间隔在默认 20 分钟窗口下视为中断，重新从 1 计。
+        XCTAssertEqual(store.addGroupWatchSamples(samples("Default20", at(12, 0)), calendar: cal)?["Default20"], 1)
+        XCTAssertEqual(store.addGroupWatchSamples(samples("Default20", at(12, 30)), calendar: cal)?["Default20"], 1)
+    }
+}

@@ -7584,20 +7584,20 @@
         }
       }
     },
-    "点选一条规则，只统计该规则。域名记录保留 30 天，规则、出口、应用的日汇总永久保留。总量取 Bettbox 自报值，各行之和与总量的差额记为“未归属”。" : {
+    "点选一条规则，只统计该规则。域名记录保留 30 天，规则、出口、应用的日汇总永久保留。总量取客户端自报值，各行之和与总量的差额记为“未归属”。" : {
       "comment" : "链路页脚注",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select a rule to count only that rule. Domain records are kept for 30 days; daily totals by rule, exit and app are kept permanently. The total is the one Bettbox reports; the gap between it and the sum of all rows is shown as “Unattributed”."
+            "value" : "Select a rule to count only that rule. Domain records are kept for 30 days; daily totals by rule, exit and app are kept permanently. The total is the one the client reports; the gap between it and the sum of all rows is shown as “Unattributed”."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点选一条规则，只统计该规则。域名记录保留 30 天，规则、出口、应用的日汇总永久保留。总量取 Bettbox 自报值，各行之和与总量的差额记为“未归属”。"
+            "value" : "点选一条规则，只统计该规则。域名记录保留 30 天，规则、出口、应用的日汇总永久保留。总量取客户端自报值，各行之和与总量的差额记为“未归属”。"
           }
         }
       }
@@ -8741,13 +8741,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Watches config changes and cleans Bettbox checks every 60s (dedup, ≥3900ms timeout & reload-storm filter, zero extra traffic). Optionally watches selected group exits every 5m or runs rate-limited bulk probes. Sleep and local offline rounds are excluded; failed probes do not affect average delay."
+            "value" : "Watches config changes and cleans client checks every 60s (dedup, ≥3900ms timeout & reload-storm filter, zero extra traffic). Optionally watches selected group exits every %lld min or runs rate-limited bulk probes. Sleep and local offline rounds are excluded; failed probes do not affect average delay."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "事件监听配置切换并每 60 秒被动清洗 Bettbox 测速（去重、过滤 ≥3900ms 超时与重载风暴，零外网流量）；可选 5 分钟盯紧分组当前出口，或按勾选策略组低频主动补测。休眠与本机断网不计入离线，失败样本不计入平均延时。"
+            "value" : "事件监听配置切换并每 60 秒被动清洗客户端测速（去重、过滤 ≥3900ms 超时与重载风暴，零外网流量）；可选每 %lld 分钟盯紧分组当前出口，或按勾选策略组低频主动补测。休眠与本机断网不计入离线，失败样本不计入平均延时。"
           }
         }
       }
@@ -9064,13 +9064,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No proxy groups returned by Bettbox"
+            "value" : "No proxy groups returned by %@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "当前 Bettbox 未返回可用策略组"
+            "value" : "当前 %@ 未返回可用策略组"
           }
         }
       }
@@ -9081,13 +9081,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Selections are saved per Bettbox profile. Bulk probes automatically include chained upstream nodes; max concurrency 4, serialized per landing chain, 4000ms timeout."
+            "value" : "Selections are saved per %@ profile. Bulk probes automatically include chained upstream nodes; max concurrency 4, serialized per landing chain, 4000ms timeout."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "勾选按 Bettbox 配置独立保存；主动补测会自动纳入链式前置节点，并发上限 4，同落地链式串行限流，超时 4000ms。"
+            "value" : "勾选按 %@ 配置独立保存；链式组主动测速自动联动其前置中转节点，同落地串行限流，超时 4000ms。"
           }
         }
       }
@@ -9251,13 +9251,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "By default, passively cleans Bettbox health checks every 60s with zero extra traffic. You can monitor selected group exits every 5m or enable scheduled low-frequency bulk probes."
+            "value" : "By default, passively cleans client health checks every 60s with zero extra traffic. Enable group-exit monitoring and scheduled probes on the Network › Nodes page."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "默认每 60 秒被动清洗 Bettbox 健康检查记录（零外网流量）。可分别勾选 5 分钟分组当前出口监测，或开启定时低频全量补测。"
+            "value" : "默认每 60 秒被动清洗客户端健康检查记录（零外网流量）。分组当前出口监测与候选组主动探测请在“网络监控 › 节点”页按当前配置勾选。"
           }
         }
       }
@@ -9589,13 +9589,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Watch %lld (5m)"
+            "value" : "Watch %lld (%lldm)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "盯 %lld 组 (每 5 分)"
+            "value" : "盯 %lld 组 (每 %lld 分)"
           }
         }
       }
@@ -9685,13 +9685,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Watched Exits (5m)"
+            "value" : "Watched Exits (%lldm)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "分组当前出口 (5分)"
+            "value" : "分组当前出口 (%lld分)"
           }
         }
       }
@@ -9813,13 +9813,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Probes each watched group's current outbound leaf every 5m (shared leaves probed once). Uptime continues under the group even after switching nodes."
+            "value" : "Probes each watched group's current outbound leaf every %lld min (shared leaves probed once). Uptime continues under the group even after switching nodes."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每 5 分钟穿透检测选定分组当前实际出站的叶节点（同叶合并只测 1 次），切换节点后连通率连续记在该分组名下。"
+            "value" : "每 %lld 分钟穿透检测选定分组当前实际出站的叶节点（同叶合并只测 1 次），切换节点后连通率连续记在该分组名下。"
           }
         }
       }
@@ -9861,13 +9861,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Watched Group Exits (Every 5m)"
+            "value" : "Watched Group Exits (Every %lld min)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "分组当前出口监测（每 5 分钟）"
+            "value" : "分组当前出口监测（每 %lld 分钟）"
           }
         }
       }
@@ -10543,6 +10543,261 @@
           }
         }
       }
+    },
+    "nodes.source.picker" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "代理客户端来源"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proxy Client Source"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.source.customPath" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义 config.yaml 路径"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom config.yaml Path"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.source.customPathHint" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "支持 ~ 开头的路径，例如 ~/.config/mihomo/config.yaml。"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supports ~ paths, e.g. ~/.config/mihomo/config.yaml."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.source.note" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只读取本机 Clash / Mihomo 系列客户端的 config.yaml：仅连接回环地址（127.0.0.1、localhost、::1）的 external-controller，secret 只在本进程内存中使用，不写入偏好设置、日志或历史数据库。"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reads only the local Clash / Mihomo config.yaml and connects only to loopback external-controllers (127.0.0.1, localhost, ::1). The secret stays in process memory and is never written to preferences, logs, or the history database."
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.source.auto" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动检测"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto Detect"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.source.custom" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自定义配置"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.watch.interval" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分组当前出口探测间隔"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Group Exit Probe Interval"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.client.connecting" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在连接 %@…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to %@…"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.client.notRunning" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 未运行，或控制器无法连接"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is not running, or the controller is unreachable"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.client.nonLocal" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 控制器不是本机地址，为保护 secret 不连接"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ controller is not a loopback address; not connecting to protect the secret"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.client.authFailed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 控制器认证失败，请检查配置里的 secret"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ controller authentication failed; check the secret in its config"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.client.decodeFailed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法解析 %@ 返回的节点数据"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to decode node data from %@"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "nodes.client.configMissing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到 %@ 配置，未读取节点"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No %@ config found; nodes were not read"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "links.client.configMissing" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到 %@ 配置，未读取链路"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No %@ config found; links were not read"
+          }
+        }
+      },
+      "extractionState" : "manual"
+    },
+    "links.client.decodeFailed" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法解析 %@ 返回的连接数据"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to decode connection data from %@"
+          }
+        }
+      },
+      "extractionState" : "manual"
     }
   },
   "version" : "1.0"

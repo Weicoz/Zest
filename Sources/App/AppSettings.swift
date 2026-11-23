@@ -45,6 +45,10 @@ struct MenuBarEntry: Codable, Identifiable, Equatable {
 final class AppSettings: ObservableObject {
     static let refreshChoices: [Double] = [0.5, 1, 2, 3, 5, 10]
     static let nodeProbeIntervalChoices: [Int] = [5, 10, 15, 30]
+    /// 分组当前出口探测间隔默认值（分钟），兼容既有 5 分钟行为。
+    static let defaultNodeGroupWatchIntervalMinutes = 5
+    /// 分组当前出口探测间隔（分钟）：1/2/5/10/15/30，主定时器每 60 秒唤醒一次。
+    static let nodeGroupWatchIntervalChoices: [Int] = [1, 2, 5, 10, 15, 30]
     static let languageChangedNotification = Notification.Name("app.zest.monitor.language")
     static let nodeProbeSettingsChangedNotification = Notification.Name("app.zest.monitor.nodeProbeSettings")
 
@@ -115,12 +119,46 @@ final class AppSettings: ObservableObject {
             broadcastNodeProbeSettings()
         }
     }
+    /// 分组当前出口探测间隔（分钟），默认 5 分钟。
+    @Published var nodeGroupWatchIntervalMinutes: Int {
+        didSet {
+            guard nodeGroupWatchIntervalMinutes != oldValue else { return }
+            defaults.set(nodeGroupWatchIntervalMinutes, forKey: Keys.nodeGroupWatchIntervalMinutes)
+            broadcastNodeProbeSettings()
+        }
+    }
+    /// 节点/链路监测读取哪个本机客户端配置（auto 自动检测）。
+    @Published var proxyClientSource: ProxyClientSource {
+        didSet {
+            guard proxyClientSource != oldValue else { return }
+            defaults.set(proxyClientSource.rawValue, forKey: Keys.proxyClientSource)
+            broadcastNodeProbeSettings()
+        }
+    }
+    /// 自定义 `config.yaml` 路径（仅 `proxyClientSource == .custom` 时读取，支持 `~`）。
+    @Published var proxyCustomConfigPath: String {
+        didSet {
+            guard proxyCustomConfigPath != oldValue else { return }
+            defaults.set(proxyCustomConfigPath, forKey: Keys.proxyCustomConfigPath)
+            broadcastNodeProbeSettings()
+        }
+    }
     /// 自定义趋势分组方案（正则自动提取 / 自由组合规则：正则、策略组、指定节点、链式筛选）。仅 UI 窗口读取，零后台开销。
     @Published var nodeTrendGroupSets: [NodeTrendGroupSet] {
         didSet {
             guard nodeTrendGroupSets != oldValue else { return }
             if let d = try? JSONEncoder().encode(nodeTrendGroupSets) { defaults.set(d, forKey: Keys.nodeTrendGroupSets) }
         }
+    }
+
+    /// 跨线程 / 跨进程读取当前代理客户端来源（UserDefaults 线程安全，写入即持久化）。
+    static func currentProxySource(defaults: UserDefaults = .standard) -> ProxyClientSource {
+        ProxyClientSource(normalized: defaults.string(forKey: Keys.proxyClientSource) ?? "auto")
+    }
+
+    /// 跨线程 / 跨进程读取自定义 `config.yaml` 路径。
+    static func currentProxyCustomPath(defaults: UserDefaults = .standard) -> String {
+        defaults.string(forKey: Keys.proxyCustomConfigPath) ?? ""
     }
 
     private enum Keys {
@@ -143,6 +181,9 @@ final class AppSettings: ObservableObject {
         static let nodeProbeScopes = "nodeProbeScopes"
         static let nodeGroupAlertEnabled = "nodeGroupAlertEnabled"
         static let nodeTrendGroupSets = "nodeTrendGroupSets"
+        static let nodeGroupWatchIntervalMinutes = "nodeGroupWatchIntervalMinutes"
+        static let proxyClientSource = "proxyClientSource"
+        static let proxyCustomConfigPath = "proxyCustomConfigPath"
     }
 
     static let defaultEntries: [MenuBarEntry] = [
@@ -179,6 +220,11 @@ final class AppSettings: ObservableObject {
         nodeProbeScopes = defaults.data(forKey: Keys.nodeProbeScopes)
             .flatMap { try? JSONDecoder().decode([String: NodeProbeScope].self, from: $0) } ?? [:]
         nodeGroupAlertEnabled = defaults.object(forKey: Keys.nodeGroupAlertEnabled) as? Bool ?? true
+        let watchMin = defaults.integer(forKey: Keys.nodeGroupWatchIntervalMinutes)
+        nodeGroupWatchIntervalMinutes = AppSettings.nodeGroupWatchIntervalChoices.contains(watchMin)
+            ? watchMin : AppSettings.defaultNodeGroupWatchIntervalMinutes
+        proxyClientSource = ProxyClientSource(normalized: defaults.string(forKey: Keys.proxyClientSource) ?? "auto")
+        proxyCustomConfigPath = defaults.string(forKey: Keys.proxyCustomConfigPath) ?? ""
         if let rawSets = defaults.data(forKey: Keys.nodeTrendGroupSets),
            let decodedSets = try? JSONDecoder().decode([NodeTrendGroupSet].self, from: rawSets),
            !decodedSets.isEmpty {
@@ -231,6 +277,10 @@ final class AppSettings: ObservableObject {
         var intervalMinutes: Int
         var scopes: [String: NodeProbeScope]
         var groupAlertEnabled: Bool
+        /// 可选：旧版 payload 缺失时按默认 5 分钟处理。
+        var watchIntervalMinutes: Int?
+        var proxyClientSource: String?
+        var proxyCustomConfigPath: String?
     }
 
     func reloadNodeProbeSettings(_ note: Notification? = nil) {
@@ -244,6 +294,14 @@ final class AppSettings: ObservableObject {
             if interval != nodeProbeIntervalMinutes { nodeProbeIntervalMinutes = interval }
             if payload.scopes != nodeProbeScopes { nodeProbeScopes = payload.scopes }
             if payload.groupAlertEnabled != nodeGroupAlertEnabled { nodeGroupAlertEnabled = payload.groupAlertEnabled }
+            let watch = payload.watchIntervalMinutes ?? 5
+            let watchInterval = AppSettings.nodeGroupWatchIntervalChoices.contains(watch)
+                ? watch : AppSettings.defaultNodeGroupWatchIntervalMinutes
+            if watchInterval != nodeGroupWatchIntervalMinutes { nodeGroupWatchIntervalMinutes = watchInterval }
+            let source = ProxyClientSource(normalized: payload.proxyClientSource ?? "auto")
+            if source != proxyClientSource { proxyClientSource = source }
+            let customPath = payload.proxyCustomConfigPath ?? ""
+            if customPath != proxyCustomConfigPath { proxyCustomConfigPath = customPath }
             return
         }
         let enabled = defaults.bool(forKey: Keys.nodeActiveProbeEnabled)
@@ -256,6 +314,14 @@ final class AppSettings: ObservableObject {
         if scopes != nodeProbeScopes { nodeProbeScopes = scopes }
         let alert = defaults.object(forKey: Keys.nodeGroupAlertEnabled) as? Bool ?? true
         if alert != nodeGroupAlertEnabled { nodeGroupAlertEnabled = alert }
+        let rawWatch = defaults.integer(forKey: Keys.nodeGroupWatchIntervalMinutes)
+        let watch = AppSettings.nodeGroupWatchIntervalChoices.contains(rawWatch)
+            ? rawWatch : AppSettings.defaultNodeGroupWatchIntervalMinutes
+        if watch != nodeGroupWatchIntervalMinutes { nodeGroupWatchIntervalMinutes = watch }
+        let source = ProxyClientSource(normalized: defaults.string(forKey: Keys.proxyClientSource) ?? "auto")
+        if source != proxyClientSource { proxyClientSource = source }
+        let path = defaults.string(forKey: Keys.proxyCustomConfigPath) ?? ""
+        if path != proxyCustomConfigPath { proxyCustomConfigPath = path }
     }
 
     /// 构造跨进程通知负载，规避 UserDefaults(cfprefsd) 异步同步与 distnoted 通知之间的竞态。
@@ -263,7 +329,10 @@ final class AppSettings: ObservableObject {
         let payload = NodeProbeSyncPayload(enabled: nodeActiveProbeEnabled,
                                            intervalMinutes: nodeProbeIntervalMinutes,
                                            scopes: nodeProbeScopes,
-                                           groupAlertEnabled: nodeGroupAlertEnabled)
+                                           groupAlertEnabled: nodeGroupAlertEnabled,
+                                           watchIntervalMinutes: nodeGroupWatchIntervalMinutes,
+                                           proxyClientSource: proxyClientSource.rawValue,
+                                           proxyCustomConfigPath: proxyCustomConfigPath)
         guard let data = try? JSONEncoder().encode(payload),
               let str = String(data: data, encoding: .utf8) else { return nil }
         return ["payload": str]

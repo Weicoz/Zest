@@ -141,10 +141,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }.store(in: &cancellables)
         Publishers.CombineLatest4(settings.$nodeActiveProbeEnabled, settings.$nodeProbeIntervalMinutes,
                                   settings.$nodeProbeScopes, settings.$nodeGroupAlertEnabled)
+            .combineLatest(settings.$nodeGroupWatchIntervalMinutes, settings.$proxyClientSource,
+                           settings.$proxyCustomConfigPath)
             .dropFirst()
-            .sink { [nodeService] enabled, interval, scopes, alertEnabled in
+            .sink { [nodeService] config, watchMinutes, source, customPath in
+                let (enabled, interval, scopes, alertEnabled) = config
                 nodeService.updateConfig(activeEnabled: enabled, intervalMinutes: interval,
-                                         scopes: scopes, groupAlertEnabled: alertEnabled)
+                                         scopes: scopes, groupAlertEnabled: alertEnabled,
+                                         watchIntervalMinutes: watchMinutes,
+                                         source: source, customConfigPath: customPath)
             }
             .store(in: &cancellables)
         network.onHistoryWillClear = { [nodeService] in nodeService.clearSync() }
@@ -301,7 +306,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         nodeService.updateConfig(activeEnabled: settings.nodeActiveProbeEnabled,
                                  intervalMinutes: settings.nodeProbeIntervalMinutes,
                                  scopes: settings.nodeProbeScopes,
-                                 groupAlertEnabled: settings.nodeGroupAlertEnabled)
+                                 groupAlertEnabled: settings.nodeGroupAlertEnabled,
+                                 watchIntervalMinutes: settings.nodeGroupWatchIntervalMinutes,
+                                 source: settings.proxyClientSource,
+                                 customConfigPath: settings.proxyCustomConfigPath)
     }
 
     #if PERFORMANCE_TEST

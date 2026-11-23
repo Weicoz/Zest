@@ -186,3 +186,197 @@ final class BettboxLedgerDeltaTests: XCTestCase {
         XCTAssertEqual(after.domains[.init(day: 20261108, host: "h.example.test", rule: "RuleSet: p1", exit: "node-a", app: "app1")]?.down, 200)
     }
 }
+
+// MARK: - 多客户端配置源（需求 2）
+
+final class ProxyClientSourceTests: XCTestCase {
+    private var home: URL!
+
+    override func setUp() {
+        home = FileManager.default.temporaryDirectory.appendingPathComponent("zest-home-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: home)
+    }
+
+    @discardableResult
+    private func write(_ relative: String, _ text: String) -> URL {
+        let url = home.appendingPathComponent(relative)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? text.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    private func resolved(_ source: ProxyClientSource, id: String = "x",
+                          configURL: URL = URL(fileURLWithPath: "/tmp/config.yaml"),
+                          profileURL: URL? = nil, kind: ProxyProfileKind = .none) -> ResolvedProxyConfig {
+        ResolvedProxyConfig(source: source, sourceId: source.sourceId, configURL: configURL,
+                            profileURL: profileURL, profileKind: kind,
+                            text: "external-controller: 127.0.0.1:9090", modified: Date())
+    }
+
+    func testSourceNormalizationAndStableIdentifiers() {
+        XCTAssertEqual(ProxyClientSource(normalized: "mihomo-party"), .mihomoParty)
+        XCTAssertEqual(ProxyClientSource(normalized: "clash-party"), .mihomoParty)
+        XCTAssertEqual(ProxyClientSource(normalized: "clash-verge-rev"), .clashVerge)
+        XCTAssertEqual(ProxyClientSource(normalized: "ClashX"), .clashX)
+        XCTAssertEqual(ProxyClientSource(normalized: "fl_clash"), .flClash)
+        XCTAssertEqual(ProxyClientSource(normalized: "unknown-client"), .auto)
+        XCTAssertEqual(ProxyClientSource(rawValue: "auto"), .auto)
+
+        let ids = Set(ProxyClientSource.allCases.map(\.sourceId))
+        XCTAssertEqual(ids.count, ProxyClientSource.allCases.count)
+        XCTAssertEqual(ProxyClientSource.bettbox.sourceId, "bettbox")
+        XCTAssertEqual(ProxyClientSource.custom.sourceId, "custom")
+        XCTAssertFalse(ProxyClientSource.clashX.displayName.isEmpty)
+    }
+
+    func testCandidatesDiscoverEveryClientPath() {
+        write("Library/Application Support/com.appshub.bettbox/config.yaml", "external-controller: 127.0.0.1:9090")
+        write("Library/Application Support/com.appshub.bettbox/config.json", #"{"currentProfileId":"p1"}"#)
+        write("Library/Application Support/io.github.clash-verge-rev.clash-verge-rev/clash-verge.yaml",
+              "external-controller: 127.0.0.1:9097")
+        write("Library/Application Support/io.github.clash-verge-rev.clash-verge-rev/profiles.yaml", "current: verge-1")
+        write("Library/Application Support/mihomo-party/work/config.yaml", "external-controller: 127.0.0.1:9090")
+        write("Library/Application Support/mihomo-party/profile.yaml", "current: party-1")
+        write("Library/Application Support/com.follow.clash/config.yaml", "external-controller: 127.0.0.1:9090")
+        write("Library/Application Support/com.metacubex.ClashX.meta/config.yaml", "external-controller: 127.0.0.1:9090")
+        write(".config/clash/config.yaml", "external-controller: 127.0.0.1:7890")
+        write(".config/mihomo/config.yaml", "external-controller: 127.0.0.1:9090")
+
+        let list = BettboxClient.candidates(home: home)
+        let sources = Set(list.map(\.source))
+        XCTAssertTrue(sources.contains(.bettbox))
+        XCTAssertTrue(sources.contains(.clashVerge))
+        XCTAssertTrue(sources.contains(.mihomoParty))
+        XCTAssertTrue(sources.contains(.flClash))
+        XCTAssertTrue(sources.contains(.clashX))
+        XCTAssertTrue(sources.contains(.mihomo))
+        XCTAssertEqual(list.filter { $0.source == .mihomoParty }.count, 1)   // clash-party 未创建时不出现
+
+        let bettbox = list.first { $0.source == .bettbox }
+        XCTAssertEqual(bettbox?.profileKind, .bettboxJSON)
+        XCTAssertEqual(bettbox?.sourceId, "bettbox")
+        XCTAssertNotNil(bettbox?.profileURL)
+
+        let verge = list.first { $0.source == .clashVerge }
+        XCTAssertEqual(verge?.profileKind, .yamlCurrent)
+        XCTAssertEqual(verge?.configURL.lastPathComponent, "clash-verge.yaml")
+        XCTAssertEqual(verge?.sourceId, "clash-verge")
+
+        // 目录里没有任何配置文件时不应返回候选。
+        let empty = FileManager.default.temporaryDirectory.appendingPathComponent("zest-empty-\(UUID().uuidString)")
+        XCTAssertTrue(BettboxClient.candidates(home: empty).isEmpty)
+    }
+
+    func testAutoDetectionPriorityRunningThenReachableThenNewest() {
+        let old = ProxyConfigCandidate(source: .bettbox, sourceId: "bettbox",
+                                       configURL: URL(fileURLWithPath: "/tmp/a.yaml"), profileURL: nil,
+                                       profileKind: .none, modified: Date(timeIntervalSince1970: 100))
+        let mid = ProxyConfigCandidate(source: .clashVerge, sourceId: "clash-verge",
+                                       configURL: URL(fileURLWithPath: "/tmp/b.yaml"), profileURL: nil,
+                                       profileKind: .none, modified: Date(timeIntervalSince1970: 200))
+        let new = ProxyConfigCandidate(source: .mihomo, sourceId: "mihomo",
+                                       configURL: URL(fileURLWithPath: "/tmp/c.yaml"), profileURL: nil,
+                                       profileKind: .none, modified: Date(timeIntervalSince1970: 300))
+
+        // 运行中的客户端优先于更新的配置。
+        XCTAssertEqual(BettboxClient.selectCandidate([old, mid, new], running: ["bettbox"], isReachable: { _ in true }),
+                       old)
+        // 无运行信号时取可达者。
+        XCTAssertEqual(BettboxClient.selectCandidate([old, mid, new], running: [], isReachable: { $0.source == .clashVerge }),
+                       mid)
+        // 都不可达时取最近修改。
+        XCTAssertEqual(BettboxClient.selectCandidate([old, mid, new], running: [], isReachable: { _ in false }), new)
+        XCTAssertNil(BettboxClient.selectCandidate([], running: [], isReachable: { _ in true }))
+    }
+
+    func testCustomPathResolutionAndLoopbackValidation() {
+        let good = write("custom/config.yaml", "external-controller: 127.0.0.1:9090\nsecret: s3cr3t\n")
+        guard case .success(let resolved) = BettboxClient.resolve(source: .custom, customPath: good.path) else {
+            return XCTFail("custom path should resolve")
+        }
+        XCTAssertEqual(resolved.source, .custom)
+        XCTAssertEqual(resolved.sourceId, "custom")
+        XCTAssertEqual(resolved.configURL, good)
+        XCTAssertEqual(BettboxClient.configDirectory(source: .custom, customPath: good.path)?.standardizedFileURL,
+                       good.deletingLastPathComponent().standardizedFileURL)
+        XCTAssertEqual(BettboxClient.profile(for: resolved).id, "custom:default")
+
+        let remote = write("custom/remote.yaml", "external-controller: 10.1.2.3:9090\n")
+        guard case .failure(let error) = BettboxClient.resolve(source: .custom, customPath: remote.path) else {
+            return XCTFail("non-loopback controller must be refused")
+        }
+        XCTAssertEqual(error, .nonLocal)
+
+        guard case .failure(let missing) = BettboxClient.resolve(source: .custom, customPath: "~/definitely-missing.yaml") else {
+            return XCTFail("missing path must fail")
+        }
+        XCTAssertEqual(missing, .missing)
+        if case .success = BettboxClient.load(source: .custom, customPath: "") {
+            XCTFail("empty custom path must not load")
+        }
+        XCTAssertNil(BettboxClient.configDirectory(source: .custom, customPath: ""))
+
+        // 自定义配置的 secret 只进内存，不出现在指纹里。
+        let fingerprint = BettboxClient.configFingerprint(forSource: .custom, customPath: good.path)
+        XCTAssertTrue(fingerprint.hasPrefix("custom|custom|"))
+        XCTAssertFalse(fingerprint.contains("s3cr3t"))
+        XCTAssertEqual(BettboxClient.configFingerprint(forSource: .clashX), "missing|clashX")
+        XCTAssertNotEqual(fingerprint, BettboxClient.configFingerprint(forSource: .bettbox))
+    }
+
+    func testProfileIsolationKeepsBettboxDefault() {
+        let bettboxJSON = write("Library/Application Support/com.appshub.bettbox/config.json",
+                                #"{"currentProfileId":"bb-profile","profiles":[{"id":"bb-profile","label":"机场 A"}]}"#)
+        let bettbox = BettboxClient.profile(for: resolved(.bettbox, id: "bettbox", profileURL: bettboxJSON, kind: .bettboxJSON))
+        XCTAssertEqual(bettbox, BettboxProfileInfo(id: "bb-profile", label: "机场 A"))
+
+        // Bettbox 没有 profile 文件时沿用旧 fallback "default"，保证既有 group_watch 记录可继续命中。
+        XCTAssertEqual(BettboxClient.profile(for: resolved(.bettbox)), .fallback)
+        XCTAssertEqual(BettboxClient.profile(for: resolved(.bettbox)).id, "default")
+
+        // 非 Bettbox 必须使用 :default 后缀，避免与 Bettbox 的 default 撞键。
+        XCTAssertEqual(BettboxClient.profile(for: resolved(.clashX)).id, "clashx:default")
+        XCTAssertEqual(BettboxClient.profile(for: resolved(.mihomoParty)).id, "mihomo-party:default")
+        XCTAssertNotEqual(BettboxClient.profile(for: resolved(.flClash)).id, BettboxProfileInfo.fallback.id)
+
+        // Clash Verge / Mihomo Party 的 profiles.yaml 当前项与名称。
+        let profiles = write("verge/profiles.yaml", "current: uid-1\nprofiles:\n  - uid: uid-1\n    name: Verge Default\n")
+        XCTAssertEqual(BettboxClient.profile(for: resolved(.clashVerge, profileURL: profiles, kind: .yamlCurrent)),
+                       BettboxProfileInfo(id: "uid-1", label: "Verge Default"))
+
+        // FlClash 的 config.json 读取 currentProfileId。
+        let fl = write("fl/config.json", #"{"currentProfileId":"fl-1"}"#)
+        XCTAssertEqual(BettboxClient.profile(for: resolved(.flClash, profileURL: fl, kind: .flClashJSON)).id, "fl-1")
+    }
+
+    func testGroupOrderExtractionFollowsTopLevelProxyGroups() {
+        let text = """
+        mixed-port: 7890
+        proxy-groups:
+          - name: "🚀 节点选择"
+            type: select
+            proxies:
+              - Auto
+          - name: Auto # 行尾注释
+            type: url-test
+            proxies:
+              - NodeA
+          - {name: Inline, type: select}
+        proxies:
+          - name: NotAGroup
+        rules:
+          - MATCH,🚀 节点选择
+        """
+        XCTAssertEqual(BettboxClient.groupOrder(inConfig: text), ["🚀 节点选择", "Auto"])
+        XCTAssertTrue(BettboxClient.groupOrder(inConfig: "mixed-port: 7890\n").isEmpty)
+
+        let client = try? BettboxClient.make(config: "external-controller: 127.0.0.1:9090\n" + text).get()
+        XCTAssertEqual(client?.groupOrder, ["🚀 节点选择", "Auto"])
+        XCTAssertEqual(client?.sourceId, "bettbox")
+    }
+}
+

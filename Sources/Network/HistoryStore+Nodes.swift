@@ -298,7 +298,11 @@ extension HistoryStore {
 
     /// 单事务写入本轮分组通道探测结果，并返回每个分组更新后的连续失败次数（供连续 2 次断线通知判断）。
     @discardableResult
-    func addGroupWatchSamples(_ samples: [GroupWatchSample], calendar: Calendar = .current) -> [String: Int]? {
+    /// - Parameter continuityWindowMs: 判定「连续失败」可跨越的最大间隔。用户把分组出口探测周期
+    ///   调大到 10/15/30 分钟后，原 20 分钟硬编码窗口会把相邻两次超时误判为不连续而归零，
+    ///   因此调用方按 `max(默认窗口, 周期 × 4)` 传入；默认值保持既有行为。
+    func addGroupWatchSamples(_ samples: [GroupWatchSample], calendar: Calendar = .current,
+                              continuityWindowMs: Int64 = HistoryStore.groupFailureContinuityWindowMs) -> [String: Int]? {
         guard !readOnly else { return nil }
         guard !samples.isEmpty else { return [:] }
         guard exec("BEGIN IMMEDIATE") else { return nil }
@@ -359,7 +363,7 @@ extension HistoryStore {
             if sqlite3_step(readFailStmt) == SQLITE_ROW {
                 let storedFail = Int(sqlite3_column_int64(readFailStmt, 0))
                 let prevTsMs = sqlite3_column_int64(readFailStmt, 1)
-                let continuous = s.tsMs >= prevTsMs && (s.tsMs - prevTsMs) <= HistoryStore.groupFailureContinuityWindowMs
+                let continuous = s.tsMs >= prevTsMs && (s.tsMs - prevTsMs) <= max(continuityWindowMs, 0)
                 prevFail = continuous ? storedFail : 0
             } else {
                 prevFail = 0

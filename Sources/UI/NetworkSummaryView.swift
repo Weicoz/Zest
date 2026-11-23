@@ -323,13 +323,14 @@ private struct PanelNodesCard: View {
     }
 
     private func statusText(_ status: NodeMonitorStatus) -> String {
+        let name = BettboxClient.currentDisplayName()
         switch status {
-        case .starting: return L10n.text("正在连接 Bettbox…")
-        case .notRunning: return L10n.text("Bettbox 未运行，或控制器无法连接")
-        case .nonLocalController: return L10n.text("Bettbox 控制器不是本机地址，为保护 secret 不连接")
-        case .authFailed: return L10n.text("Bettbox 控制器认证失败，请检查配置里的 secret")
-        case .decodeFailed: return L10n.text("无法解析 Bettbox 返回的节点数据")
-        case .configMissing: return L10n.text("找不到 Bettbox 配置，未读取节点")
+        case .starting: return String(format: L10n.text("nodes.client.connecting", defaultValue: "正在连接 %@…"), name)
+        case .notRunning: return String(format: L10n.text("nodes.client.notRunning", defaultValue: "%@ 未运行，或控制器无法连接"), name)
+        case .nonLocalController: return String(format: L10n.text("nodes.client.nonLocal", defaultValue: "%@ 控制器不是本机地址，为保护 secret 不连接"), name)
+        case .authFailed: return String(format: L10n.text("nodes.client.authFailed", defaultValue: "%@ 控制器认证失败，请检查配置里的 secret"), name)
+        case .decodeFailed: return String(format: L10n.text("nodes.client.decodeFailed", defaultValue: "无法解析 %@ 返回的节点数据"), name)
+        case .configMissing: return String(format: L10n.text("nodes.client.configMissing", defaultValue: "找不到 %@ 配置，未读取节点"), name)
         case .available: return ""
         }
     }

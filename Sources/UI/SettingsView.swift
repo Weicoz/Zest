@@ -152,15 +152,36 @@ private struct NetworkSettings: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {
+                Picker(L10n.text("nodes.source.picker", defaultValue: "代理客户端来源"),
+                       selection: $settings.proxyClientSource) {
+                    ForEach(ProxyClientSource.allCases, id: \.self) { source in
+                        Text(source.localizedDisplayName).tag(source)
+                    }
+                }
+                if settings.proxyClientSource == .custom {
+                    TextField(L10n.text("nodes.source.customPath", defaultValue: "自定义 config.yaml 路径"),
+                              text: $settings.proxyCustomConfigPath)
+                        .textFieldStyle(.roundedBorder)
+                    Text(L10n.text("nodes.source.customPathHint", defaultValue: "支持 ~ 开头的路径，例如 ~/.config/mihomo/config.yaml。"))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Text(L10n.text("nodes.source.note", defaultValue: "只读取本机 Clash / Mihomo 系列客户端的 config.yaml：仅连接回环地址（127.0.0.1、localhost、::1）的 external-controller，secret 只在本进程内存中使用，不写入偏好设置、日志或历史数据库。"))
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle(L10n.text("nodes.watch.alertToggle", defaultValue: "连续 2 次超时发送断线系统通知"), isOn: $settings.nodeGroupAlertEnabled)
+                Picker(L10n.text("nodes.watch.interval", defaultValue: "分组当前出口探测间隔"),
+                       selection: $settings.nodeGroupWatchIntervalMinutes) {
+                    ForEach(AppSettings.nodeGroupWatchIntervalChoices, id: \.self) { m in
+                        Text(String(format: L10n.text("%lld 分钟"), Int64(m))).tag(m)
+                    }
+                }
                 Toggle(L10n.text("nodes.probe.enable", defaultValue: "启用定时主动探测"), isOn: $settings.nodeActiveProbeEnabled)
-                Picker(L10n.text("nodes.probe.interval", defaultValue: "探测间隔"), selection: $settings.nodeProbeIntervalMinutes) {
+                Picker(L10n.text("nodes.probe.interval", defaultValue: "候选组全量测速间隔"), selection: $settings.nodeProbeIntervalMinutes) {
                     ForEach(AppSettings.nodeProbeIntervalChoices, id: \.self) { m in
                         Text(String(format: L10n.text("%lld 分钟"), Int64(m))).tag(m)
                     }
                 }
                 .disabled(!settings.nodeActiveProbeEnabled)
-                Text(L10n.text("nodes.settings.note", defaultValue: "默认仅每 60 秒被动吸收 Bettbox 健康检查记录（零外网流量）。分组当前出口监测（每 5 分钟）与候选组主动探测请在“网络监控 › 节点”页按当前配置勾选。"))
+                Text(L10n.text("nodes.settings.note", defaultValue: "默认仅每 60 秒被动吸收客户端健康检查记录（零外网流量）。分组当前出口监测与候选组主动探测请在“网络监控 › 节点”页按当前配置勾选。"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let network {

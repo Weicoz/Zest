@@ -2,12 +2,17 @@
 //  BettboxClient.swift
 //  Zest
 //
-//  读取 Bettbox 配置里的控制器地址和 secret，请求本机 Mihomo REST API（/connections、/proxies、/proxies/{name}/delay）。
+//  读取本机 Clash / Mihomo 系列客户端（Bettbox、Clash Verge Rev、Mihomo Party / Clash Party、
+//  FlClash、ClashX 系列、mihomo CLI、自定义路径）配置里的控制器地址和 secret，
+//  请求本机 Mihomo REST API（/connections、/proxies、/proxies/{name}/delay）。
 //  secret 只在内存：不写日志、文件、UserDefaults，也不出现在任何错误状态里。
 //  只连回环地址：secret 走明文 HTTP，不得发往远端。
 //
 
 import Foundation
+#if canImport(AppKit)
+import AppKit
+#endif
 
 enum BettboxResult {
     case available(BettboxPayload)
@@ -43,6 +48,154 @@ enum BettboxConfigError: Error, Equatable {
     case nonLocal
 }
 
+// MARK: - 代理客户端来源
+
+/// 节点/链路监测读取本机哪一个客户端的配置。
+enum ProxyClientSource: String, Codable, CaseIterable, Sendable {
+    case auto
+    case bettbox
+    case clashVerge
+    case mihomoParty
+    case flClash
+    case clashX
+    case mihomo
+    case custom
+
+    /// 兼容 `mihomo-party`、`clash-party`、`clash-verge`、`fl-clash`、`clashx` 等写法。
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = ProxyClientSource(normalized: raw)
+    }
+
+    init(normalized raw: String) {
+        let key = raw.replacingOccurrences(of: "-", with: "")
+            .replacingOccurrences(of: "_", with: "")
+            .lowercased()
+        switch key {
+        case "bettbox": self = .bettbox
+        case "clashverge", "clashvergerev": self = .clashVerge
+        case "mihomoparty", "clashparty": self = .mihomoParty
+        case "flclash": self = .flClash
+        case "clashx", "clashxmeta", "clashxpro": self = .clashX
+        case "mihomo": self = .mihomo
+        case "custom": self = .custom
+        default: self = .auto
+        }
+    }
+
+    /// 稳定的来源标识：用于 `NodeProbeScope` 键、指纹与 `<sourceId>:default` 兜底 profileId。
+    var sourceId: String {
+        switch self {
+        case .auto: return "auto"
+        case .bettbox: return "bettbox"
+        case .clashVerge: return "clash-verge"
+        case .mihomoParty: return "mihomo-party"
+        case .flClash: return "fl-clash"
+        case .clashX: return "clashx"
+        case .mihomo: return "mihomo"
+        case .custom: return "custom"
+        }
+    }
+
+    /// 界面展示名（品牌名不翻译）。
+    var displayName: String {
+        switch self {
+        case .auto: return "自动检测"
+        case .bettbox: return "Bettbox"
+        case .clashVerge: return "Clash Verge"
+        case .mihomoParty: return "Mihomo Party"
+        case .flClash: return "FlClash"
+        case .clashX: return "ClashX"
+        case .mihomo: return "Clash / Mihomo"
+        case .custom: return "自定义配置"
+        }
+    }
+
+    /// 判定客户端是否在运行时比对的 bundle identifier。
+    var runningBundleIdentifiers: [String] {
+        switch self {
+        case .bettbox: return ["com.appshub.bettbox"]
+        case .clashVerge: return ["io.github.clash-verge-rev.clash-verge-rev"]
+        case .mihomoParty: return ["party.mihomo.app", "party.clash.app", "com.mihomo.party"]
+        case .flClash: return ["com.follow.clash"]
+        case .clashX: return ["com.metacubex.ClashX.meta", "com.west2online.ClashXPro", "com.metacubex.ClashX"]
+        case .auto, .mihomo, .custom: return []
+        }
+    }
+
+    /// 运行中应用名匹配（bundle id 随发行版变化时兜底）。
+    var runningNameHints: [String] {
+        switch self {
+        case .bettbox: return ["bettbox"]
+        case .clashVerge: return ["clash verge"]
+        case .mihomoParty: return ["mihomo party", "clash party"]
+        case .flClash: return ["flclash"]
+        case .clashX: return ["clashx"]
+        case .auto, .mihomo, .custom: return []
+        }
+    }
+}
+
+extension ProxyClientSource {
+    /// 界面展示名：自动 / 自定义走本地化，品牌名原样。
+    var localizedDisplayName: String {
+        switch self {
+        case .auto: return L10n.text("nodes.source.auto", defaultValue: "自动检测")
+        case .custom: return L10n.text("nodes.source.custom", defaultValue: "自定义配置")
+        default: return displayName
+        }
+    }
+
+    /// 来源是否在运行（只读进程表，开销极低，不阻塞主线程）。
+    func isRunning() -> Bool {
+        let bundles = runningBundleIdentifiers
+        let hints = runningNameHints
+        guard !bundles.isEmpty || !hints.isEmpty else { return false }
+        #if canImport(AppKit)
+        for bundle in bundles {
+            if !NSRunningApplication.runningApplications(withBundleIdentifier: bundle).isEmpty { return true }
+        }
+        for app in NSWorkspace.shared.runningApplications {
+            let name = (app.localizedName ?? "").lowercased()
+            if hints.contains(where: { name.contains($0) }) { return true }
+        }
+        #endif
+        return false
+    }
+}
+
+// MARK: - 配置来源定位
+
+enum ProxyProfileKind: Equatable, Sendable {
+    /// Bettbox：`config.json` 的 `currentProfileId` + `profiles[].label`
+    case bettboxJSON
+    /// `profiles.yaml` / `profile.yaml` 的 `current`
+    case yamlCurrent
+    /// FlClash：`config.json` 的 `currentProfileId` / `current`
+    case flClashJSON
+    case none
+}
+
+struct ProxyConfigCandidate: Equatable, Sendable {
+    var source: ProxyClientSource
+    var sourceId: String
+    var configURL: URL
+    var profileURL: URL?
+    var profileKind: ProxyProfileKind
+    /// 配置文件修改时间（自动检测「最近修改」用）。
+    var modified: Date
+}
+
+struct ResolvedProxyConfig: Equatable, Sendable {
+    var source: ProxyClientSource
+    var sourceId: String
+    var configURL: URL
+    var profileURL: URL?
+    var profileKind: ProxyProfileKind
+    var text: String
+    var modified: Date
+}
+
 struct BettboxClient {
     static let appSupportDirectory = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/com.appshub.bettbox", isDirectory: true)
@@ -68,9 +221,20 @@ struct BettboxClient {
     private let base: URL
     private let secret: String
 
+    let source: ProxyClientSource
+    let sourceId: String
+    let configURL: URL
+    /// `config.yaml` 的 `proxy-groups` 名称顺序，供 `NodeTopology` 还原 Bettbox / Clash 原序。
+    let groupOrder: [String]
+
+    // MARK: 构造
+
     /// 按行正则解析，不引入 YAML 依赖。0.0.0.0、::、[::] 改连 127.0.0.1；
     /// 端口须在 1…65535；主机须是 127.0.0.0/8、localhost 或 ::1。
-    static func make(config: String) -> Result<BettboxClient, BettboxConfigError> {
+    static func make(config: String,
+                    source: ProxyClientSource = .bettbox,
+                    sourceId: String = ProxyClientSource.bettbox.sourceId,
+                    configURL: URL = BettboxClient.configURL) -> Result<BettboxClient, BettboxConfigError> {
         guard let controller = scalar("external-controller", in: config), !controller.isEmpty,
               let colon = controller.lastIndex(of: ":") else { return .failure(.missing) }
         var host = String(controller[..<colon]).lowercased()
@@ -80,13 +244,215 @@ struct BettboxClient {
         guard isLoopback(host) else { return .failure(.nonLocal) }
         guard let origin = URL(string: "http://\(host):\(port)"),
               let url = URL(string: "http://\(host):\(port)/connections") else { return .failure(.missing) }
-        return .success(BettboxClient(origin: origin, base: url, secret: scalar("secret", in: config) ?? ""))
+        return .success(BettboxClient(origin: origin,
+                                      base: url,
+                                      secret: scalar("secret", in: config) ?? "",
+                                      source: source,
+                                      sourceId: sourceId,
+                                      configURL: configURL,
+                                      groupOrder: groupOrder(inConfig: config)))
     }
 
-    static func load() -> Result<BettboxClient, BettboxConfigError> {
-        guard let text = try? String(contentsOf: configURL, encoding: .utf8) else { return .failure(.missing) }
-        return make(config: text)
+    /// 读取配置并构造客户端。默认来源保持 Bettbox，行为与旧版一致。
+    static func load(source: ProxyClientSource = .bettbox,
+                     customPath: String = "") -> Result<BettboxClient, BettboxConfigError> {
+        switch resolve(source: source, customPath: customPath) {
+        case .failure(let error):
+            return .failure(error)
+        case .success(let resolved):
+            return make(config: resolved.text,
+                        source: resolved.source,
+                        sourceId: resolved.sourceId,
+                        configURL: resolved.configURL)
+        }
     }
+
+    // MARK: 来源定位
+
+    /// 用户家目录下的候选配置（按偏好排序）。
+    static func candidates(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> [ProxyConfigCandidate] {
+        let appSupport = home.appendingPathComponent("Library/Application Support", isDirectory: true)
+        let dotConfig = home.appendingPathComponent(".config", isDirectory: true)
+
+        func candidate(_ source: ProxyClientSource,
+                       _ url: URL,
+                       profile: URL? = nil,
+                       kind: ProxyProfileKind = .none) -> ProxyConfigCandidate {
+            ProxyConfigCandidate(source: source,
+                                 sourceId: source.sourceId,
+                                 configURL: url,
+                                 profileURL: profile,
+                                 profileKind: kind,
+                                 modified: modificationDate(of: url))
+        }
+
+        let bettboxDir = appSupport.appendingPathComponent("com.appshub.bettbox", isDirectory: true)
+        let vergeDir = appSupport.appendingPathComponent("io.github.clash-verge-rev.clash-verge-rev", isDirectory: true)
+        let mihomoPartyDir = appSupport.appendingPathComponent("mihomo-party", isDirectory: true)
+        let clashPartyDir = appSupport.appendingPathComponent("clash-party", isDirectory: true)
+        let flClashDir = appSupport.appendingPathComponent("com.follow.clash", isDirectory: true)
+
+        var result: [ProxyConfigCandidate] = [
+            candidate(.bettbox,
+                      bettboxDir.appendingPathComponent("config.yaml"),
+                      profile: bettboxDir.appendingPathComponent("config.json"),
+                      kind: .bettboxJSON),
+            candidate(.clashVerge,
+                      vergeDir.appendingPathComponent("clash-verge.yaml"),
+                      profile: vergeDir.appendingPathComponent("profiles.yaml"),
+                      kind: .yamlCurrent),
+            candidate(.clashVerge,
+                      vergeDir.appendingPathComponent("config.yaml"),
+                      profile: vergeDir.appendingPathComponent("profiles.yaml"),
+                      kind: .yamlCurrent),
+            candidate(.mihomoParty,
+                      mihomoPartyDir.appendingPathComponent("work/config.yaml"),
+                      profile: mihomoPartyDir.appendingPathComponent("profile.yaml"),
+                      kind: .yamlCurrent),
+            candidate(.mihomoParty,
+                      clashPartyDir.appendingPathComponent("work/config.yaml"),
+                      profile: clashPartyDir.appendingPathComponent("profile.yaml"),
+                      kind: .yamlCurrent),
+            candidate(.flClash,
+                      flClashDir.appendingPathComponent("config.yaml"),
+                      profile: flClashDir.appendingPathComponent("config.json"),
+                      kind: .flClashJSON),
+            candidate(.clashX,
+                      appSupport.appendingPathComponent("com.metacubex.ClashX.meta/config.yaml")),
+            candidate(.clashX,
+                      appSupport.appendingPathComponent("com.west2online.ClashXPro/config.yaml")),
+            candidate(.clashX,
+                      dotConfig.appendingPathComponent("clash/config.yaml")),
+            candidate(.mihomo,
+                      dotConfig.appendingPathComponent("mihomo/config.yaml"))
+        ]
+        result.removeAll { !FileManager.default.fileExists(atPath: $0.configURL.path) }
+        return result
+    }
+
+    /// 解析来源到具体配置文件；`custom` 只认用户给定路径，`auto` 按运行状态/可达性/最近修改挑选。
+    static func resolve(source: ProxyClientSource,
+                        customPath: String = "") -> Result<ResolvedProxyConfig, BettboxConfigError> {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+
+        func resolved(_ candidate: ProxyConfigCandidate) -> Result<ResolvedProxyConfig, BettboxConfigError> {
+            guard let text = try? String(contentsOf: candidate.configURL, encoding: .utf8) else {
+                return .failure(.missing)
+            }
+            if case .failure(let error) = make(config: text) { return .failure(error) }
+            return .success(ResolvedProxyConfig(source: candidate.source,
+                                                sourceId: candidate.sourceId,
+                                                configURL: candidate.configURL,
+                                                profileURL: candidate.profileURL,
+                                                profileKind: candidate.profileKind,
+                                                text: text,
+                                                modified: candidate.modified))
+        }
+
+        if source == .custom {
+            let trimmed = (customPath as NSString).expandingTildeInPath.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return .failure(.missing) }
+            let url = URL(fileURLWithPath: trimmed)
+            guard FileManager.default.fileExists(atPath: url.path) else { return .failure(.missing) }
+            return resolved(ProxyConfigCandidate(source: .custom,
+                                                 sourceId: ProxyClientSource.custom.sourceId,
+                                                 configURL: url,
+                                                 profileURL: nil,
+                                                 profileKind: .none,
+                                                 modified: modificationDate(of: url)))
+        }
+
+        let all = candidates(home: home)
+        let pool = source == .auto ? all : all.filter { $0.source == source }
+        guard !pool.isEmpty else { return .failure(.missing) }
+
+        // 逐个校验：配置必须存在且控制器合法（回环）。缺失的跳过，非回环立即报错。
+        var valid: [ProxyConfigCandidate] = []
+        var seenNonLocal = false
+        for candidate in pool {
+            guard let text = try? String(contentsOf: candidate.configURL, encoding: .utf8) else { continue }
+            switch make(config: text) {
+            case .success:
+                valid.append(candidate)
+            case .failure(.nonLocal):
+                seenNonLocal = true
+            case .failure(.missing):
+                continue
+            }
+        }
+        if valid.isEmpty {
+            return .failure(seenNonLocal ? .nonLocal : .missing)
+        }
+        if source != .auto {
+            return resolved(valid[0])
+        }
+        guard let chosen = selectCandidate(valid,
+                                           running: runningSources(),
+                                           isReachable: { isControllerReachable(candidate: $0) }) else {
+            return .failure(.missing)
+        }
+        return resolved(chosen)
+    }
+
+    /// 自动检测优先级：运行中客户端 → 控制器可达 → 最近修改。
+    static func selectCandidate(_ candidates: [ProxyConfigCandidate],
+                                running: Set<String>,
+                                isReachable: (ProxyConfigCandidate) -> Bool) -> ProxyConfigCandidate? {
+        guard !candidates.isEmpty else { return nil }
+        if let runningOne = candidates.first(where: { running.contains($0.sourceId) }) {
+            return runningOne
+        }
+        if candidates.count > 1, let reachable = candidates.first(where: isReachable) {
+            return reachable
+        }
+        return candidates.max { $0.modified < $1.modified }
+    }
+
+    static func runningSources() -> Set<String> {
+        var result = Set<String>()
+        for source in ProxyClientSource.allCases where source.isRunning() {
+            result.insert(source.sourceId)
+        }
+        return result
+    }
+
+    /// 控制器可达性探测（0.4s 超时 + 15s 缓存），只在自动检测多配置并存时使用。
+    private static let reachabilityLock = NSLock()
+    private static var reachabilityCache: [String: (until: Date, ok: Bool)] = [:]
+
+    private static func isControllerReachable(candidate: ProxyConfigCandidate) -> Bool {
+        let key = candidate.sourceId + "|" + candidate.configURL.path
+        reachabilityLock.lock()
+        if let cached = reachabilityCache[key], cached.until > Date() {
+            reachabilityLock.unlock()
+            return cached.ok
+        }
+        reachabilityLock.unlock()
+
+        var ok = false
+        if let text = try? String(contentsOf: candidate.configURL, encoding: .utf8),
+           case .success(let client) = make(config: text) {
+            ok = client.probeVersionSync()
+        }
+        reachabilityLock.lock()
+        reachabilityCache[key] = (Date().addingTimeInterval(15), ok)
+        reachabilityLock.unlock()
+        return ok
+    }
+
+    /// 配置目录（kqueue 目录监听目标）。切源后随来源变化。
+    static func configDirectory(source: ProxyClientSource, customPath: String = "") -> URL? {
+        switch resolve(source: source, customPath: customPath) {
+        case .success(let resolved): return resolved.configURL.deletingLastPathComponent()
+        case .failure: return nil
+        }
+    }
+
+    private static func modificationDate(of url: URL) -> Date {
+        (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date) ?? .distantPast
+    }
+
+    // MARK: profile
 
     /// 读取 Bettbox 当前选中的配置 ID 与名称（config.json）。读不到或 JSON 非法时返回 nil。
     private static func loadProfileStrict(from url: URL = appConfigURL) -> BettboxProfileInfo? {
@@ -110,20 +476,108 @@ struct BettboxClient {
         loadProfileStrict(from: url) ?? .fallback
     }
 
-    /// 缓存 config.json 的 (sec:nsec:ino:size) -> currentProfileId，避免活跃探测期间重复解析 JSON。
+    /// 按来源读取 profile：Bettbox 沿用 `currentProfileId`（不破坏既有 `nodeProbeScopes` 与 `group_watch`），
+    /// 其他客户端用各自 profile 文件的 ID，读不到时退回 `<sourceId>:default` 以避免与 Bettbox `default` 冲突。
+    static func profile(for resolved: ResolvedProxyConfig) -> BettboxProfileInfo {
+        var id: String?
+        var label = ""
+        if let url = resolved.profileURL {
+            switch resolved.profileKind {
+            case .bettboxJSON, .flClashJSON:
+                if let data = try? Data(contentsOf: url),
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    id = (json["currentProfileId"] as? String) ?? (json["current"] as? String)
+                    if let profiles = json["profiles"] as? [[String: Any]] {
+                        for item in profiles where (item["id"] as? String) == id {
+                            label = (item["label"] as? String) ?? (item["name"] as? String) ?? ""
+                            break
+                        }
+                    }
+                }
+            case .yamlCurrent:
+                if let text = try? String(contentsOf: url, encoding: .utf8) {
+                    id = scalar("current", in: text)
+                    label = yamlProfileName(for: id, in: text) ?? ""
+                }
+            case .none:
+                break
+            }
+        }
+        if let id, !id.isEmpty {
+            return BettboxProfileInfo(id: id, label: label)
+        }
+        if resolved.source == .bettbox { return .fallback }
+        return BettboxProfileInfo(id: "\(resolved.sourceId):default", label: "")
+    }
+
+    /// 当前来源展示名（10 秒缓存，避免 SwiftUI 每次渲染都读配置文件）。
+    static func currentDisplayName() -> String {
+        let source = AppSettings.currentProxySource()
+        let customPath = AppSettings.currentProxyCustomPath()
+        let key = "\(source.rawValue)|\(customPath)"
+        displayNameLock.lock()
+        let cached = displayNameCache
+        displayNameLock.unlock()
+        if let cached, cached.key == key, Date().timeIntervalSince(cached.at) < 10 {
+            return cached.name
+        }
+        let name = resolvedDisplayName(source: source, customPath: customPath)
+        displayNameLock.lock()
+        displayNameCache = (key, name, Date())
+        displayNameLock.unlock()
+        return name
+    }
+
+    private static let displayNameLock = NSLock()
+    nonisolated(unsafe) private static var displayNameCache: (key: String, name: String, at: Date)?
+
+    /// 当前来源的 profile（Bettbox 沿用 `currentProfileId`，其余用各自 profile 文件或 `<sourceId>:default`）。
+    static func profile(source: ProxyClientSource, customPath: String = "") -> BettboxProfileInfo {
+        switch resolve(source: source, customPath: customPath) {
+        case .success(let resolved):
+            return profile(for: resolved)
+        case .failure:
+            return source == .bettbox
+                ? .fallback
+                : BettboxProfileInfo(id: "\(source.sourceId):default", label: "")
+        }
+    }
+
+    /// `profiles.yaml` / `profile.yaml` 里按 `uid`（或 `id`）找 `name`（Clash Verge / Mihomo Party）。
+    private static func yamlProfileName(for id: String?, in text: String) -> String? {
+        guard let id, !id.isEmpty else { return nil }
+        var matched = false
+        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = String(rawLine)
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            var body = trimmed
+            if body.hasPrefix("-") { body = String(body.dropFirst()).trimmingCharacters(in: .whitespaces) }
+            if body.hasPrefix("uid:") || body.hasPrefix("id:") {
+                let key = body.hasPrefix("uid:") ? "uid:" : "id:"
+                let value = yamlUnquote(String(body.dropFirst(key.count)).trimmingCharacters(in: .whitespaces))
+                matched = (value == id)
+            } else if matched, body.hasPrefix("name:") {
+                return yamlUnquote(String(body.dropFirst("name:".count)).trimmingCharacters(in: .whitespaces))
+            }
+        }
+        return nil
+    }
+
+    /// 缓存 profile 文件的 (sec:nsec:ino:size) -> id，避免活跃探测期间重复解析。
     private static let profileIdCacheLock = NSLock()
     private static var profileIdCache: [String: (sig: String, id: String)] = [:]
 
-    /// 极轻量的配置文件指纹：取 `config.yaml` 的纳秒 mtime+inode+size 与 `config.json` 的 `currentProfileId`。
-    /// 不依赖 `config.json` 原始 mtime，防止 Bettbox 写入窗口状态等 UI 字段时误取消正在进行的主动测速；
-    /// 同时仅在 JSON 解析成功且读前后文件签名一致时写入缓存，避免非原子半写毒化缓存。
+    static func fileSignature(_ url: URL) -> String {
+        var st = stat()
+        guard stat(url.path, &st) == 0 else { return "-" }
+        return "\(st.st_mtimespec.tv_sec):\(st.st_mtimespec.tv_nsec):\(st.st_ino):\(st.st_size)"
+    }
+
+    /// 极轻量的配置文件指纹：取 `config.yaml` 的纳秒 mtime+inode+size 与 profileId。
+    /// 不依赖 profile 文件原始 mtime，防止客户端写入窗口状态等 UI 字段时误取消正在进行的主动测速；
+    /// 同时仅在解析成功且读前后文件签名一致时写入缓存，避免非原子半写毒化缓存。
     static func configFingerprint(config: URL = configURL, appConfig: URL = appConfigURL) -> String {
-        func sig(_ url: URL) -> String {
-            var st = stat()
-            guard stat(url.path, &st) == 0 else { return "-" }
-            return "\(st.st_mtimespec.tv_sec):\(st.st_mtimespec.tv_nsec):\(st.st_ino):\(st.st_size)"
-        }
-        let appSig = sig(appConfig)
+        let appSig = fileSignature(appConfig)
         let appPath = appConfig.path
         let profileId: String
         if appSig == "-" {
@@ -135,7 +589,7 @@ struct BettboxClient {
             if let cached, cached.sig == appSig {
                 profileId = cached.id
             } else if let loaded = loadProfileStrict(from: appConfig) {
-                if sig(appConfig) == appSig {
+                if fileSignature(appConfig) == appSig {
                     profileIdCacheLock.lock()
                     profileIdCache[appPath] = (appSig, loaded.id)
                     profileIdCacheLock.unlock()
@@ -145,11 +599,66 @@ struct BettboxClient {
                 profileId = BettboxProfileInfo.fallback.id
             }
         }
-        return "\(sig(config))|\(profileId)"
+        return "\(fileSignature(config))|\(profileId)"
+    }
+
+    /// 来源感知的指纹：当前来源标识 + 配置文件签名 + profileId。切换来源或热切配置都会变化。
+    static func configFingerprint(forSource source: ProxyClientSource, customPath: String = "") -> String {
+        guard case .success(let resolved) = resolve(source: source, customPath: customPath) else {
+            return "missing|\(source.rawValue)"
+        }
+        let profileId = profile(for: resolved).id
+        return "\(source.rawValue)|\(resolved.sourceId)|\(fileSignature(resolved.configURL))|\(profileId)"
+    }
+
+    static func resolvedDisplayName(source: ProxyClientSource, customPath: String = "") -> String {
+        guard source == .auto else { return source.displayName }
+        if case .success(let resolved) = resolve(source: source, customPath: customPath) {
+            return resolved.source.displayName
+        }
+        return source.displayName
+    }
+
+    // MARK: 配置解析辅助
+
+    /// `proxy-groups` 下的 `name` 顺序（Bettbox / Clash 原序），供策略组排序。
+    static func groupOrder(inConfig text: String) -> [String] {
+        var result: [String] = []
+        var inside = false
+        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = String(rawLine)
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty { continue }
+            if !line.hasPrefix(" ") && !line.hasPrefix("\t") {
+                if inside { break }
+                inside = trimmed.hasPrefix("proxy-groups:")
+                continue
+            }
+            guard inside else { continue }
+            // `- name: xxx` 或列表项内的 `name: xxx`
+            var body = trimmed
+            if body.hasPrefix("-") { body = String(body.dropFirst()).trimmingCharacters(in: .whitespaces) }
+            guard body.hasPrefix("name:") else { continue }
+            let value = String(body.dropFirst("name:".count)).trimmingCharacters(in: .whitespaces)
+            if let name = yamlUnquote(value), !name.isEmpty, !result.contains(name) {
+                result.append(name)
+            }
+        }
+        return result
+    }
+
+    private static func yamlUnquote(_ value: String) -> String? {
+        guard !value.isEmpty else { return nil }
+        if let q = value.first, q == "\"" || q == "'" {
+            let rest = value.dropFirst()
+            if let end = rest.firstIndex(of: q) { return String(rest[..<end]) }
+        }
+        return (value.range(of: " #").map { String(value[..<$0.lowerBound]) } ?? value)
+            .trimmingCharacters(in: .whitespaces)
     }
 
     private static func isLoopback(_ host: String) -> Bool {
-        if host == "localhost" || host == "[::1]" { return true }
+        if host == "localhost" || host == "[::1]" || host == "::1" { return true }
         let octets = host.split(separator: ".", omittingEmptySubsequences: false)
         return octets.count == 4 && octets.allSatisfy { Int($0).map { (0...255).contains($0) } ?? false } && octets[0] == "127"
     }
@@ -168,10 +677,15 @@ struct BettboxClient {
         return (v.range(of: " #").map { String(v[..<$0.lowerBound]) } ?? v).trimmingCharacters(in: .whitespaces)
     }
 
-    private init(origin: URL, base: URL, secret: String) {
+    private init(origin: URL, base: URL, secret: String,
+                 source: ProxyClientSource, sourceId: String, configURL: URL, groupOrder: [String]) {
         self.origin = origin
         self.base = base
         self.secret = secret
+        self.source = source
+        self.sourceId = sourceId
+        self.configURL = configURL
+        self.groupOrder = groupOrder
     }
 
     private func authorizedRequest(url: URL, timeout: TimeInterval) -> URLRequest {
@@ -204,6 +718,22 @@ struct BettboxClient {
         ]
         guard let url = comps.url else { return nil }
         return authorizedRequest(url: url, timeout: TimeInterval(clampedTimeout) / 1000.0 + 2.5)
+    }
+
+    /// 同步探测 `/version`（自动检测用，0.4s 超时）。
+    fileprivate func probeVersionSync() -> Bool {
+        let url = origin.appendingPathComponent("version")
+        var request = authorizedRequest(url: url, timeout: 0.4)
+        request.httpMethod = "GET"
+        let semaphore = DispatchSemaphore(value: 0)
+        var ok = false
+        let task = Self.loopbackSession.dataTask(with: request) { _, response, _ in
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 { ok = true }
+            semaphore.signal()
+        }
+        task.resume()
+        _ = semaphore.wait(timeout: .now() + 1.0)
+        return ok
     }
 
     func fetch() async -> BettboxResult {
