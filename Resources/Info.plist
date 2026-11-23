@@ -36,13 +36,8 @@
 	</array>
 	<key>NSHumanReadableCopyright</key>
 	<string>GPL-3.0-or-later. 部分监控逻辑源自 Tencent Lemon Cleaner。</string>
-	<!-- 私钥在登录钥匙串，账户 app.zest.monitor。发布时 sign_update / generate_appcast 要加 --account app.zest.monitor。 -->
-	<key>SUFeedURL</key>
-	<string>https://zest.bytenote.net/appcast.xml</string>
-	<key>SUPublicEDKey</key>
-	<string>PkowCBO4/qqBhiFyteB19RBz7+ZzHZk/FIZSldkCo5g=</string>
 	<key>SUEnableAutomaticChecks</key>
-	<true/>
+	<false/>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSAppleEventsUsageDescription</key>

@@ -202,7 +202,7 @@ private struct AboutView: View {
                         get: { updater.automaticallyChecksForUpdates },
                         set: { updater.automaticallyChecksForUpdates = $0 }
                     ))
-                    Text(L10n.text("每天向 zest.bytenote.net 查询一次是否有新版本。"))
+                    Text(L10n.text("每天自动检查一次是否有新版本。"))
                         .font(.caption).foregroundStyle(.secondary)
                     Toggle(L10n.text("自动下载并安装更新"), isOn: Binding(
                         get: { updater.automaticallyDownloadsUpdates },
@@ -212,12 +212,15 @@ private struct AboutView: View {
                     Button(L10n.text("检查更新…")) { updater.checkForUpdates() }
                 }
                 .frame(maxWidth: 360, alignment: .leading)
-            } else if Bundle.main.object(forInfoDictionaryKey: "ZestCustomBuild") as? Bool == true {
-                Text(L10n.text("快捷工具定制版：已停用官方自动更新，以保留定制功能。"))
+            } else {
+                Text(L10n.text("Zest Plus 已停用原版自动更新，新版本请前往 GitHub Releases 获取。"))
                     .font(.caption).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Link("GitHub Releases", destination: URL(string: "https://github.com/Weicoz/Zest/releases")!)
+                    .font(.caption)
             }
             Divider().padding(.horizontal, 40)
-            Link("@字节笔记本", destination: URL(string: "https://www.bytenote.net")!)
+            Link(L10n.text("基于 Zest（@字节笔记本）"), destination: URL(string: "https://www.bytenote.net")!)
                 .font(.caption)
         }
         .padding()

@@ -55,7 +55,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         NSApp.setActivationPolicy(.accessory)
-        if Bundle.main.object(forInfoDictionaryKey: "ZestCustomBuild") as? Bool != true {
+        let feedURL = (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if Bundle.main.object(forInfoDictionaryKey: "ZestCustomBuild") as? Bool != true, !feedURL.isEmpty {
             updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
         }
         let tools = QuickToolsController(settings: settings)

@@ -5455,20 +5455,20 @@
         }
       }
     },
-    "每天向 zest.bytenote.net 查询一次是否有新版本。" : {
-      "comment" : "关于页自动检查说明。域名不翻译。",
+    "每天自动检查一次是否有新版本。" : {
+      "comment" : "关于页自动检查说明。",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Checks zest.bytenote.net once a day for a new version."
+            "value" : "Checks once a day for a new version."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每天向 zest.bytenote.net 查询一次是否有新版本。"
+            "value" : "每天自动检查一次是否有新版本。"
           }
         }
       }
@@ -5882,19 +5882,36 @@
         }
       }
     },
-    "快捷工具定制版：已停用官方自动更新，以保留定制功能。" : {
+    "Zest Plus 已停用原版自动更新，新版本请前往 GitHub Releases 获取。" : {
       "extractionState" : "manual",
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "快捷工具定制版：已停用官方自动更新，以保留定制功能。"
+            "value" : "Zest Plus 已停用原版自动更新，新版本请前往 GitHub Releases 获取。"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Custom Quick Tools edition. Official automatic updates are disabled to preserve your features."
+            "value" : "Upstream automatic updates are disabled in Zest Plus. Download new versions from GitHub Releases."
+          }
+        }
+      }
+    },
+    "基于 Zest（@字节笔记本）" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于 Zest（@字节笔记本）"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Based on Zest (@bytenote)"
           }
         }
       }
