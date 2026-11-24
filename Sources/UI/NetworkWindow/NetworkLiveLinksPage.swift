@@ -76,22 +76,23 @@ struct NetworkLiveLinksPage: View {
                     }
                 }
                 Table(live) {
-                    TableColumn(L10n.text("域名")) { l in Text(dash(l.host)).lineLimit(1).truncationMode(.middle) }
+                    TableColumn(L10n.text("域名")) { l in Text(dash(l.host)).lineLimit(1).truncationMode(.middle).textSelection(.enabled) }
                         .width(min: 100, ideal: 160)
-                    TableColumn(L10n.text("目标 IP")) { l in Text(dash(l.destinationIP)).font(.system(size: 11, design: .monospaced)).lineLimit(1) }
+                    TableColumn(L10n.text("目标 IP")) { l in Text(dash(l.destinationIP)).font(.system(size: 11, design: .monospaced)).lineLimit(1).textSelection(.enabled) }
                         .width(min: 90, ideal: 120)
                     TableColumn(L10n.text("端口")) { l in Text(dash(l.port)).monospacedDigit() }
                         .width(46)
                     TableColumn(L10n.text("connections.column.app", defaultValue: "应用")) { l in Text(dash(l.app)).lineLimit(1) }
                         .width(min: 70, ideal: 100)
-                    TableColumn(L10n.text("命中规则")) { l in Text(dash(l.rule)).lineLimit(1).truncationMode(.middle) }
+                    TableColumn(L10n.text("命中规则")) { l in Text(dash(l.rule)).lineLimit(1).truncationMode(.middle).textSelection(.enabled) }
                         .width(min: 80, ideal: 120)
                     TableColumn(L10n.text("策略链")) { l in
                         Text(l.chain.isEmpty ? "—" : l.chain.joined(separator: " → ")).lineLimit(1).truncationMode(.middle)
+                            .textSelection(.enabled)
                             .help(l.chain.joined(separator: " → "))
                     }
                     .width(min: 100, ideal: 160)
-                    TableColumn(L10n.text("出口")) { l in Text(dash(l.exit)).lineLimit(1) }
+                    TableColumn(L10n.text("出口")) { l in Text(dash(l.exit)).lineLimit(1).textSelection(.enabled) }
                         .width(min: 70, ideal: 100)
                     TableColumn(L10n.text("下行速率")) { l in Text(Fmt.rate(l.downRate)).monospacedDigit() }
                         .width(80)

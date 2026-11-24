@@ -42,7 +42,7 @@ struct PanelView: View {
             PanelTabBar(selection: $tab)
                 .disabled(Self.isPerformanceRun)
             content
-            PanelFooter(openSettings: openSettings, quit: quit)
+            PanelFooter(openMainWindow: { openNetworkWindow(nil) }, openSettings: openSettings, quit: quit)
         }
         .padding(PanelView.padding)
         .frame(width: PanelView.width)
@@ -116,11 +116,20 @@ private struct PanelHeader: View {
 }
 
 private struct PanelFooter: View {
+    var openMainWindow: () -> Void
     var openSettings: () -> Void
     var quit: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
+            Button(action: openMainWindow) {
+                HStack(spacing: 4) {
+                    Image(systemName: "macwindow")
+                    Text(L10n.text("panel.openMainWindow", defaultValue: "主窗口"))
+                }
+            }
+            .buttonStyle(FooterPillButtonStyle())
+            .help(Text(L10n.text("panel.openMainWindowHelp", defaultValue: "打开网络监控主窗口")))
             Spacer()
             Button(action: openSettings) { Image(systemName: "gearshape") }
                 .help(Text(L10n.text("设置")))
@@ -167,6 +176,18 @@ private struct FooterButtonStyle: ButtonStyle {
             .font(.system(size: 12, weight: .medium))
             .foregroundStyle(.secondary)
             .frame(width: 24, height: 22)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(configuration.isPressed ? 0.14 : 0.06)))
+            .contentShape(Rectangle())
+    }
+}
+
+private struct FooterPillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .frame(height: 22)
             .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(configuration.isPressed ? 0.14 : 0.06)))
             .contentShape(Rectangle())
     }

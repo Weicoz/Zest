@@ -790,3 +790,42 @@ final class NodeGroupWatchIntervalTests: XCTestCase {
         XCTAssertEqual(store.addGroupWatchSamples(samples("Default20", at(12, 30)), calendar: cal)?["Default20"], 1)
     }
 }
+
+// MARK: - 主菜单编辑与窗口快捷键
+
+final class MainMenuTests: XCTestCase {
+    private func findItem(in menu: NSMenu, action: Selector) -> NSMenuItem? {
+        for item in menu.items {
+            if item.action == action { return item }
+            if let sub = item.submenu, let found = findItem(in: sub, action: action) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    func testMakeMainMenuContainsStandardEditAndWindowShortcuts() throws {
+        let menu = AppDelegate.makeMainMenu()
+        XCTAssertGreaterThanOrEqual(menu.items.count, 3)
+
+        let expected: [(Selector, String, NSEvent.ModifierFlags)] = [
+            (Selector(("undo:")), "z", [.command]),
+            (Selector(("redo:")), "z", [.command, .shift]),
+            (#selector(NSText.cut(_:)), "x", [.command]),
+            (#selector(NSText.copy(_:)), "c", [.command]),
+            (#selector(NSText.paste(_:)), "v", [.command]),
+            (#selector(NSTextView.pasteAsPlainText(_:)), "v", [.command, .option, .shift]),
+            (#selector(NSText.delete(_:)), "", [.command]),
+            (#selector(NSText.selectAll(_:)), "a", [.command]),
+            (#selector(NSWindow.performClose(_:)), "w", [.command]),
+            (#selector(NSWindow.performMiniaturize(_:)), "m", [.command]),
+        ]
+
+        for (selector, key, mask) in expected {
+            let item = try XCTUnwrap(findItem(in: menu, action: selector), "missing menu item for \(selector)")
+            XCTAssertEqual(item.keyEquivalent, key, "keyEquivalent mismatch for \(selector)")
+            XCTAssertEqual(item.keyEquivalentModifierMask, mask, "modifierMask mismatch for \(selector)")
+            XCTAssertNil(item.target, "target should be nil to route through First Responder for \(selector)")
+        }
+    }
+}

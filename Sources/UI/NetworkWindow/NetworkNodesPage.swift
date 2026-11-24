@@ -7,6 +7,7 @@
 //  - 全量节点 1d/7d/30d 统计（严格三态、等权平均、低样本标注、按来源筛选「全部 / 仅主动」、链式前置对比）。
 //
 
+import AppKit
 import Charts
 import SwiftUI
 
@@ -245,6 +246,18 @@ struct NetworkNodesPage: View {
                             }
                         }
                         .help(r.isChain ? "\(r.name)\n\(r.nodeType) · dialer-proxy: \(r.dialer)" : "\(r.name) (\(r.nodeType))")
+                        .contextMenu {
+                            Button(L10n.text("nodes.copyName", defaultValue: "拷贝节点名")) {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(r.name, forType: .string)
+                            }
+                            if r.isChain {
+                                Button(L10n.text("nodes.copyDialer", defaultValue: "拷贝前置链")) {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(r.dialer, forType: .string)
+                                }
+                            }
+                        }
                     }
                     .width(min: 240, ideal: 340)
 
@@ -964,8 +977,8 @@ private struct NodeDetailSection: View {
             Card {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(row.name).font(.system(size: 14, weight: .semibold))
-                        Text(metaLine).font(.system(size: 11)).foregroundStyle(.secondary)
+                        Text(row.name).font(.system(size: 14, weight: .semibold)).textSelection(.enabled)
+                        Text(metaLine).font(.system(size: 11)).foregroundStyle(.secondary).textSelection(.enabled)
                     }
                     Spacer()
                 }

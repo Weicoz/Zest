@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !AppDelegate.isRunningTests else { return }
+        installMainMenu()
         observeLanguageChanges()
         PerformanceLog.shared.event("start", ["refresh_seconds": settings.refreshInterval,
             "network_monitoring": settings.networkMonitoring,
@@ -241,13 +242,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 statusItem?.forceRedraw(snapshot: store.snapshot)
             }.store(in: &cancellables)
 
-        // 菜单栏图片按上一帧内容缓存；语言变化时必须强制重画，不能另起定时器。
+        // 菜单栏图片按上一帧内容缓存；语言变化时必须强制重画，并同步刷新应用主菜单语言。
         settings.$appLanguage
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self else { return }
                 statusItem?.forceRedraw(snapshot: store.snapshot)
+                installMainMenu()
             }.store(in: &cancellables)
 
         // 屏幕休眠/锁屏时暂停采样，节省电量。
@@ -270,6 +272,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         languageObserver = DistributedNotificationCenter.default().addObserver(
             forName: AppSettings.languageChangedNotification, object: nil, queue: .main) { [weak self] note in
                 self?.settings.reloadLanguage(note)
+                self?.installMainMenu()
             }
         if AppDelegate.isNetworkViewer {
             DistributedNotificationCenter.default().addObserver(
@@ -463,5 +466,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWindow = SettingsWindowController(settings: settings, network: network, updater: updaterController?.updater, tools: quickTools)
         }
         settingsWindow?.present()
+    }
+
+    private func installMainMenu() {
+        let menu = AppDelegate.makeMainMenu()
+        NSApp.mainMenu = menu
+        NSApp.windowsMenu = menu.items.last?.submenu
+    }
+
+    /// 主进程（菜单栏/设置）、独立网络监控窗口进程与磁盘窗口进程共用标准主菜单：
+    /// 无 NIB 的纯代码菜单栏应用缺省没有 Edit 菜单，会导致 ⌘C / ⌘V / ⌘X / ⌘A / ⌘Z 无法经 First Responder 路由到文本框与可选文本。
+    static func makeMainMenu() -> NSMenu {
+        let mainMenu = NSMenu()
+
+        // 应用菜单
+        let appItem = NSMenuItem()
+        let appMenu = NSMenu(title: "Zest Plus")
+        appMenu.addItem(withTitle: L10n.text("menu.hide", defaultValue: "隐藏 Zest Plus"),
+                        action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        let hideOthers = appMenu.addItem(withTitle: L10n.text("menu.hideOthers", defaultValue: "隐藏其他"),
+                                         action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        hideOthers.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(withTitle: L10n.text("menu.showAll", defaultValue: "全部显示"),
+                        action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: L10n.text("menu.quit", defaultValue: "退出 Zest Plus"),
+                        action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appItem.submenu = appMenu
+        mainMenu.addItem(appItem)
+
+        // 编辑菜单：target 保持 nil，全部走 First Responder 响应链。
+        let editItem = NSMenuItem()
+        let editMenu = NSMenu(title: L10n.text("menu.edit", defaultValue: "编辑"))
+        editMenu.addItem(withTitle: L10n.text("menu.undo", defaultValue: "撤销"),
+                         action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = editMenu.addItem(withTitle: L10n.text("menu.redo", defaultValue: "重做"),
+                                    action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: L10n.text("menu.cut", defaultValue: "剪切"),
+                         action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: L10n.text("menu.copy", defaultValue: "拷贝"),
+                         action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: L10n.text("menu.paste", defaultValue: "粘贴"),
+                         action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        let pastePlain = editMenu.addItem(withTitle: L10n.text("menu.pasteAndMatchStyle", defaultValue: "粘贴并匹配样式"),
+                                          action: #selector(NSTextView.pasteAsPlainText(_:)), keyEquivalent: "v")
+        pastePlain.keyEquivalentModifierMask = [.command, .option, .shift]
+        editMenu.addItem(withTitle: L10n.text("menu.delete", defaultValue: "删除"),
+                         action: #selector(NSText.delete(_:)), keyEquivalent: "")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: L10n.text("menu.selectAll", defaultValue: "全选"),
+                         action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editItem.submenu = editMenu
+        mainMenu.addItem(editItem)
+
+        // 窗口菜单
+        let windowItem = NSMenuItem()
+        let windowMenu = NSMenu(title: L10n.text("menu.window", defaultValue: "窗口"))
+        windowMenu.addItem(withTitle: L10n.text("menu.closeWindow", defaultValue: "关闭窗口"),
+                           action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowMenu.addItem(withTitle: L10n.text("menu.minimize", defaultValue: "最小化"),
+                           action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowItem.submenu = windowMenu
+        mainMenu.addItem(windowItem)
+
+        return mainMenu
     }
 }
