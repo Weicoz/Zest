@@ -55,9 +55,18 @@ end tell
 OSA
 )
 cp build/xcstrings-backup/*.xcstrings Resources/
-xr=$(find ~/Library/Developer/Xcode/DerivedData/Zest-*/Logs/Test -maxdepth 1 -name '*.xcresult' -newer "$LOG" 2>/dev/null | sort | tail -1)
+xr=""
 summary=""
-[ -n "$xr" ] && summary=$(xcrun xcresulttool get test-results summary --path "$xr" --compact 2>&1)
+for _ in $(seq 1 30); do
+  xr=$(find ~/Library/Developer/Xcode/DerivedData/Zest-*/Logs/Test -maxdepth 1 -name '*.xcresult' -newer "$LOG" 2>/dev/null | sort | tail -1)
+  if [ -n "$xr" ] && [ -f "$xr/Info.plist" ]; then
+    summary=$(xcrun xcresulttool get test-results summary --path "$xr" --compact 2>&1)
+    if printf '%s' "$summary" | grep -Eq '"(passedTests|failedTests|totalTestCount)":[0-9]'; then
+      break
+    fi
+  fi
+  sleep 1
+done
 printf '%s\n%s\n%s\n' "$status" "$xr" "$summary" > "$LOG"
 passed=$(printf '%s' "$summary" | grep -Eo '"passedTests":[0-9]+' | head -1 | grep -Eo '[0-9]+')
 failed=$(printf '%s' "$summary" | grep -Eo '"failedTests":[0-9]+' | head -1 | grep -Eo '[0-9]+')
