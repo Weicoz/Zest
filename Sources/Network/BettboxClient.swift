@@ -9,6 +9,7 @@
 //  只连回环地址：secret 走明文 HTTP，不得发往远端。
 //
 
+import CryptoKit
 import Foundation
 #if canImport(AppKit)
 import AppKit
@@ -194,6 +195,10 @@ struct ResolvedProxyConfig: Equatable, Sendable {
     var profileKind: ProxyProfileKind
     var text: String
     var modified: Date
+    var isJSON: Bool = false
+    var controllerOrigin: String = ""
+    var secretFingerprint: String = ""
+    var isLoopbackFallback: Bool = false
 }
 
 struct BettboxClient {
@@ -227,25 +232,252 @@ struct BettboxClient {
     /// `config.yaml` 的 `proxy-groups` 名称顺序，供 `NodeTopology` 还原 Bettbox / Clash 原序。
     let groupOrder: [String]
 
+    var controllerOriginString: String { origin.absoluteString }
+    var secretFingerprint: String { Self.digestSecret(secret) }
+
     // MARK: 构造
 
-    /// 按行正则解析，不引入 YAML 依赖。0.0.0.0、::、[::] 改连 127.0.0.1；
-    /// 端口须在 1…65535；主机须是 127.0.0.0/8、localhost 或 ::1。
-    static func make(config: String,
-                    source: ProxyClientSource = .bettbox,
-                    sourceId: String = ProxyClientSource.bettbox.sourceId,
-                    configURL: URL = BettboxClient.configURL) -> Result<BettboxClient, BettboxConfigError> {
-        guard let controller = scalar("external-controller", in: config), !controller.isEmpty,
+    private static func parseController(_ raw: String) -> Result<(origin: URL, base: URL), BettboxConfigError> {
+        let controller = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !controller.isEmpty,
               let colon = controller.lastIndex(of: ":") else { return .failure(.missing) }
         var host = String(controller[..<colon]).lowercased()
         guard let port = Int(controller[controller.index(after: colon)...]), (1...65535).contains(port)
         else { return .failure(.missing) }
         if ["", "0.0.0.0", "::", "[::]"].contains(host) { host = "127.0.0.1" }
+        if host == "::1" { host = "[::1]" }
         guard isLoopback(host) else { return .failure(.nonLocal) }
         guard let origin = URL(string: "http://\(host):\(port)"),
               let url = URL(string: "http://\(host):\(port)/connections") else { return .failure(.missing) }
-        return .success(BettboxClient(origin: origin,
-                                      base: url,
+        return .success((origin, url))
+    }
+
+    private static func isJSONConfig(text: String, configURL: URL) -> Bool {
+        configURL.pathExtension.lowercased() == "json"
+            || text.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("{")
+    }
+
+    private static func digestSecret(_ secret: String) -> String {
+        guard !secret.isEmpty else { return "none" }
+        return SHA256.hash(data: Data(secret.utf8))
+            .prefix(8)
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+
+    private static func parsePort(_ raw: Any?) -> Int? {
+        if let num = raw as? NSNumber {
+            if CFGetTypeID(num) == CFBooleanGetTypeID() { return nil }
+            let val = num.doubleValue
+            guard val.isFinite, val.rounded() == val, (1.0...65535.0).contains(val) else { return nil }
+            return Int(val)
+        }
+        if let str = raw as? String,
+           let port = Int(str.trimmingCharacters(in: .whitespacesAndNewlines)),
+           (1...65535).contains(port) {
+            return port
+        }
+        return nil
+    }
+
+    private static func profileYAMLURL(forConfigURL configURL: URL, profileId: String) -> URL? {
+        let trimmed = profileId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != ".", trimmed != "..",
+              !trimmed.contains("/"), !trimmed.contains("\\") else {
+            return nil
+        }
+        return configURL.deletingLastPathComponent()
+            .appendingPathComponent("profiles", isDirectory: true)
+            .appendingPathComponent("\(trimmed).yaml")
+    }
+
+    private static let profileGroupOrderLock = NSLock()
+    private static var profileGroupOrderCache: [String: (sig: String, order: [String])] = [:]
+
+    private static func cachedGroupOrder(at url: URL) -> [String] {
+        let sig = fileSignature(url)
+        guard sig != "-" else { return [] }
+        let key = url.path
+        profileGroupOrderLock.lock()
+        if let cached = profileGroupOrderCache[key], cached.sig == sig {
+            profileGroupOrderLock.unlock()
+            return cached.order
+        }
+        profileGroupOrderLock.unlock()
+
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+        let order = groupOrder(inConfig: text)
+        if fileSignature(url) == sig {
+            profileGroupOrderLock.lock()
+            if profileGroupOrderCache.count > 32 { profileGroupOrderCache.removeAll(keepingCapacity: true) }
+            profileGroupOrderCache[key] = (sig, order)
+            profileGroupOrderLock.unlock()
+        }
+        return order
+    }
+
+    private static func jsonContainers(in json: [String: Any]) -> [[String: Any]] {
+        var result: [[String: Any]] = []
+        for key in ["patchClashConfig", "clashConfig", "coreConfig", "clash", "controller"] {
+            if let nested = json[key] as? [String: Any] {
+                result.append(nested)
+            }
+        }
+        result.append(json)
+        return result
+    }
+
+    private static func firstNonEmptySecret(in container: [String: Any]) -> String? {
+        for key in ["secret", "external-controller-secret", "externalControllerSecret"] {
+            if let value = container[key] as? String, !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func extractGroupOrder(from containers: [[String: Any]]) -> [String] {
+        var order: [String] = []
+        for container in containers {
+            for key in ["proxy-groups", "proxyGroups"] {
+                guard let groups = container[key] as? [[String: Any]] else { continue }
+                for item in groups {
+                    if let name = (item["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                       !name.isEmpty, !order.contains(name) {
+                        order.append(name)
+                    }
+                }
+                if !order.isEmpty { return order }
+            }
+        }
+        return order
+    }
+
+    private static func extractJSONConfig(
+        from json: [String: Any],
+        configURL: URL
+    ) -> Result<(origin: URL, base: URL, secret: String, groupOrder: [String]), BettboxConfigError> {
+        let containers = jsonContainers(in: json)
+        var parsedController: (origin: URL, base: URL)?
+        var matchedContainer: [String: Any]?
+
+        containerLoop: for container in containers {
+            for key in ["external-controller", "externalController"] {
+                if let raw = container[key] as? String {
+                    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        switch parseController(trimmed) {
+                        case .success(let pair):
+                            parsedController = pair
+                            matchedContainer = container
+                            break containerLoop
+                        case .failure(let error):
+                            return .failure(error)
+                        }
+                    }
+                }
+            }
+            for portKey in ["external-controller-port", "externalControllerPort"] {
+                if let port = parsePort(container[portKey]) {
+                    switch parseController("127.0.0.1:\(port)") {
+                    case .success(let pair):
+                        parsedController = pair
+                        matchedContainer = container
+                        break containerLoop
+                    case .failure(let error):
+                        return .failure(error)
+                    }
+                }
+            }
+        }
+
+        let profileId = (json["currentProfileId"] as? String) ?? (json["current"] as? String)
+        let profileYAML = profileId.flatMap { profileYAMLURL(forConfigURL: configURL, profileId: $0) }
+        var secret = ""
+
+        if let parsed = parsedController {
+            if let matchedContainer, let found = firstNonEmptySecret(in: matchedContainer) {
+                secret = found
+            } else {
+                for container in containers {
+                    if let found = firstNonEmptySecret(in: container) {
+                        secret = found
+                        break
+                    }
+                }
+            }
+            var order = profileYAML.map(cachedGroupOrder(at:)) ?? []
+            if order.isEmpty {
+                order = extractGroupOrder(from: containers)
+            }
+            return .success((parsed.origin, parsed.base, secret, order))
+        }
+
+        // Layer A：所有 JSON 容器均缺失控制器字段时，回退读取当前活跃 profiles/<id>.yaml 内的控制器配置。
+        if let profileYAML,
+           let yamlText = try? String(contentsOf: profileYAML, encoding: .utf8),
+           let yamlController = scalar("external-controller", in: yamlText),
+           !yamlController.isEmpty {
+            let parsed: (origin: URL, base: URL)
+            switch parseController(yamlController) {
+            case .success(let pair): parsed = pair
+            case .failure(let error): return .failure(error)
+            }
+            if let yamlSecret = scalar("secret", in: yamlText), !yamlSecret.isEmpty {
+                secret = yamlSecret
+            } else {
+                for container in containers {
+                    if let found = firstNonEmptySecret(in: container) {
+                        secret = found
+                        break
+                    }
+                }
+            }
+            var order = cachedGroupOrder(at: profileYAML)
+            if order.isEmpty {
+                order = extractGroupOrder(from: containers)
+            }
+            return .success((parsed.origin, parsed.base, secret, order))
+        }
+
+        return .failure(.missing)
+    }
+
+    /// 按行正则解析 YAML 或解析 Bettbox / FlClash `config.json`（兼容多容器与驼峰/连字符键，并可回退活跃 `profiles/<id>.yaml`）；
+    /// 0.0.0.0、::、[::] 改连 127.0.0.1；端口须在 1…65535；主机须是 127.0.0.0/8、localhost 或 ::1。
+    static func make(config: String,
+                     source: ProxyClientSource = .bettbox,
+                     sourceId: String = ProxyClientSource.bettbox.sourceId,
+                     configURL: URL = BettboxClient.configURL) -> Result<BettboxClient, BettboxConfigError> {
+        if isJSONConfig(text: config, configURL: configURL) {
+            guard let data = config.data(using: .utf8),
+                  let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+                return .failure(.missing)
+            }
+            switch extractJSONConfig(from: json, configURL: configURL) {
+            case .failure(let error):
+                return .failure(error)
+            case .success(let extracted):
+                return .success(BettboxClient(origin: extracted.origin,
+                                              base: extracted.base,
+                                              secret: extracted.secret,
+                                              source: source,
+                                              sourceId: sourceId,
+                                              configURL: configURL,
+                                              groupOrder: extracted.groupOrder))
+            }
+        }
+
+        guard let controller = scalar("external-controller", in: config), !controller.isEmpty else {
+            return .failure(.missing)
+        }
+        let parsed: (origin: URL, base: URL)
+        switch parseController(controller) {
+        case .success(let pair): parsed = pair
+        case .failure(let error): return .failure(error)
+        }
+        return .success(BettboxClient(origin: parsed.origin,
+                                      base: parsed.base,
                                       secret: scalar("secret", in: config) ?? "",
                                       source: source,
                                       sourceId: sourceId,
@@ -255,8 +487,9 @@ struct BettboxClient {
 
     /// 读取配置并构造客户端。默认来源保持 Bettbox，行为与旧版一致。
     static func load(source: ProxyClientSource = .bettbox,
-                     customPath: String = "") -> Result<BettboxClient, BettboxConfigError> {
-        switch resolve(source: source, customPath: customPath) {
+                     customPath: String = "",
+                     home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Result<BettboxClient, BettboxConfigError> {
+        switch resolve(source: source, customPath: customPath, home: home) {
         case .failure(let error):
             return .failure(error)
         case .success(let resolved):
@@ -297,6 +530,10 @@ struct BettboxClient {
                       bettboxDir.appendingPathComponent("config.yaml"),
                       profile: bettboxDir.appendingPathComponent("config.json"),
                       kind: .bettboxJSON),
+            candidate(.bettbox,
+                      bettboxDir.appendingPathComponent("config.json"),
+                      profile: bettboxDir.appendingPathComponent("config.json"),
+                      kind: .bettboxJSON),
             candidate(.clashVerge,
                       vergeDir.appendingPathComponent("clash-verge.yaml"),
                       profile: vergeDir.appendingPathComponent("profiles.yaml"),
@@ -317,6 +554,10 @@ struct BettboxClient {
                       flClashDir.appendingPathComponent("config.yaml"),
                       profile: flClashDir.appendingPathComponent("config.json"),
                       kind: .flClashJSON),
+            candidate(.flClash,
+                      flClashDir.appendingPathComponent("config.json"),
+                      profile: flClashDir.appendingPathComponent("config.json"),
+                      kind: .flClashJSON),
             candidate(.clashX,
                       appSupport.appendingPathComponent("com.metacubex.ClashX.meta/config.yaml")),
             candidate(.clashX,
@@ -331,19 +572,35 @@ struct BettboxClient {
     }
 
     /// 解析来源到具体配置文件；`custom` 只认用户给定路径，`auto` 按运行状态/可达性/最近修改挑选。
-    /// 解析后的配置快照：原文 + 策略组顺序。按 `(path, fileSignature)` 缓存，
+    /// 解析后的配置快照：原文 + 策略组顺序。按 `(path, snapshotSignature)` 缓存，
     /// 稳态下 `resolve()` / `configFingerprint()` 只做 `stat()`，不再读盘与重跑解析。
     struct ProxyConfigSnapshot {
         let text: String
         let groupOrder: [String]
+        let controllerOrigin: String
+        let secretFingerprint: String
+        let isJSON: Bool
     }
 
     private static let configSnapshotLock = NSLock()
     private static var configSnapshotCache: [String: (sig: String, result: Result<ProxyConfigSnapshot, BettboxConfigError>)] = [:]
 
+    private static func snapshotSignature(for candidate: ProxyConfigCandidate) -> String {
+        let baseSig = fileSignature(candidate.configURL)
+        guard baseSig != "-" else { return "-" }
+        guard candidate.configURL.pathExtension.lowercased() == "json" else { return baseSig }
+        let profileURL = candidate.profileURL ?? candidate.configURL
+        let profileKind: ProxyProfileKind = candidate.profileKind == .none ? .bettboxJSON : candidate.profileKind
+        let profileId = cachedProfileInfo(from: profileURL, kind: profileKind).id
+        let profileYamlSig = profileId
+            .flatMap { profileYAMLURL(forConfigURL: candidate.configURL, profileId: $0) }
+            .map(fileSignature) ?? "-"
+        return "\(baseSig)|\(profileYamlSig)"
+    }
+
     /// 读取并校验配置；命中签名缓存时零读盘。`secret` 随原文只在内存中，不落任何持久化。
     static func snapshot(for candidate: ProxyConfigCandidate) -> Result<ProxyConfigSnapshot, BettboxConfigError> {
-        let sig = fileSignature(candidate.configURL)
+        let sig = snapshotSignature(for: candidate)
         guard sig != "-" else { return .failure(.missing) }
         let key = candidate.configURL.path
         configSnapshotLock.lock()
@@ -357,7 +614,11 @@ struct BettboxClient {
         if let text = try? String(contentsOf: candidate.configURL, encoding: .utf8) {
             switch make(config: text, source: candidate.source, sourceId: candidate.sourceId, configURL: candidate.configURL) {
             case .success(let client):
-                result = .success(ProxyConfigSnapshot(text: text, groupOrder: client.groupOrder))
+                result = .success(ProxyConfigSnapshot(text: text,
+                                                      groupOrder: client.groupOrder,
+                                                      controllerOrigin: client.controllerOriginString,
+                                                      secretFingerprint: client.secretFingerprint,
+                                                      isJSON: isJSONConfig(text: text, configURL: candidate.configURL)))
             case .failure(let error):
                 result = .failure(error)
             }
@@ -371,9 +632,59 @@ struct BettboxClient {
         return result
     }
 
+    private static func defaultControllerPorts(for source: ProxyClientSource) -> [Int] {
+        switch source {
+        case .clashVerge: return [9097, 9090]
+        case .bettbox, .flClash, .mihomoParty, .clashX, .mihomo: return [9090]
+        case .auto, .custom: return []
+        }
+    }
+
+    private static func defaultLocation(for source: ProxyClientSource,
+                                        home: URL) -> (configURL: URL, profileURL: URL?, profileKind: ProxyProfileKind) {
+        let appSupport = home.appendingPathComponent("Library/Application Support", isDirectory: true)
+        let dotConfig = home.appendingPathComponent(".config", isDirectory: true)
+        let fm = FileManager.default
+        func existing(_ url: URL) -> URL? { fm.fileExists(atPath: url.path) ? url : nil }
+
+        switch source {
+        case .bettbox:
+            let dir = appSupport.appendingPathComponent("com.appshub.bettbox", isDirectory: true)
+            let profile = existing(dir.appendingPathComponent("config.json"))
+            return (dir.appendingPathComponent("config.yaml"), profile, profile == nil ? .none : .bettboxJSON)
+        case .clashVerge:
+            let dir = appSupport.appendingPathComponent("io.github.clash-verge-rev.clash-verge-rev", isDirectory: true)
+            let profile = existing(dir.appendingPathComponent("profiles.yaml"))
+            return (dir.appendingPathComponent("clash-verge.yaml"), profile, profile == nil ? .none : .yamlCurrent)
+        case .mihomoParty:
+            let partyDir = appSupport.appendingPathComponent("mihomo-party", isDirectory: true)
+            let clashPartyDir = appSupport.appendingPathComponent("clash-party", isDirectory: true)
+            if let profile = existing(partyDir.appendingPathComponent("profile.yaml")) {
+                return (partyDir.appendingPathComponent("work/config.yaml"), profile, .yamlCurrent)
+            }
+            if let profile = existing(clashPartyDir.appendingPathComponent("profile.yaml")) {
+                return (clashPartyDir.appendingPathComponent("work/config.yaml"), profile, .yamlCurrent)
+            }
+            return (partyDir.appendingPathComponent("work/config.yaml"), nil, .none)
+        case .flClash:
+            let dir = appSupport.appendingPathComponent("com.follow.clash", isDirectory: true)
+            let profile = existing(dir.appendingPathComponent("config.json"))
+            return (dir.appendingPathComponent("config.yaml"), profile, profile == nil ? .none : .flClashJSON)
+        case .clashX:
+            return (appSupport.appendingPathComponent("com.metacubex.ClashX.meta/config.yaml"), nil, .none)
+        case .mihomo:
+            return (dotConfig.appendingPathComponent("mihomo/config.yaml"), nil, .none)
+        case .auto, .custom:
+            return (BettboxClient.configURL, nil, .none)
+        }
+    }
+
     static func resolve(source: ProxyClientSource,
                         customPath: String = "",
-                        home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Result<ResolvedProxyConfig, BettboxConfigError> {
+                        home: URL = FileManager.default.homeDirectoryForCurrentUser,
+                        runningOverride: Set<String>? = nil,
+                        reachabilityOverride: ((ProxyConfigCandidate) -> Bool)? = nil,
+                        loopbackFallbackOverride: ((ProxyClientSource) -> URL?)? = nil) -> Result<ResolvedProxyConfig, BettboxConfigError> {
         func resolved(_ candidate: ProxyConfigCandidate) -> Result<ResolvedProxyConfig, BettboxConfigError> {
             switch snapshot(for: candidate) {
             case .failure(let error):
@@ -385,7 +696,10 @@ struct BettboxClient {
                                                     profileURL: candidate.profileURL,
                                                     profileKind: candidate.profileKind,
                                                     text: snapshot.text,
-                                                    modified: candidate.modified))
+                                                    modified: candidate.modified,
+                                                    isJSON: snapshot.isJSON,
+                                                    controllerOrigin: snapshot.controllerOrigin,
+                                                    secretFingerprint: snapshot.secretFingerprint))
             }
         }
 
@@ -402,12 +716,13 @@ struct BettboxClient {
                                                  modified: modificationDate(of: url)))
         }
 
+        let running = runningOverride ?? runningSources()
+        let reachability = reachabilityOverride ?? { isControllerReachable(candidate: $0) }
         let all = candidates(home: home)
         let pool = source == .auto ? all : all.filter { $0.source == source }
-        guard !pool.isEmpty else { return .failure(.missing) }
 
-        // 逐个校验：配置必须存在且控制器合法（回环）。缺失的跳过，非回环立即报错。
-        // snapshot 按 (path, fileSignature) 缓存，稳态只做 stat，不再读盘 / 重跑解析。
+        // 逐个校验：配置必须存在且控制器合法（回环）。缺失的跳过，非回环记录后继续判断。
+        // snapshot 按 (path, snapshotSignature) 缓存，稳态只做 stat，不再读盘 / 重跑解析。
         var valid: [ProxyConfigCandidate] = []
         var seenNonLocal = false
         for candidate in pool {
@@ -420,27 +735,71 @@ struct BettboxClient {
                 continue
             }
         }
-        if valid.isEmpty {
-            return .failure(seenNonLocal ? .nonLocal : .missing)
+        if !valid.isEmpty {
+            let chosen: ProxyConfigCandidate?
+            if source != .auto {
+                chosen = selectPreferred(valid, isReachable: reachability)
+            } else {
+                chosen = selectCandidate(valid, running: running, isReachable: reachability)
+            }
+            guard let chosen else { return .failure(.missing) }
+            return resolved(chosen)
         }
-        if source != .auto {
-            return resolved(valid[0])
+
+        if seenNonLocal {
+            return .failure(.nonLocal)
         }
-        guard let chosen = selectCandidate(valid,
-                                           running: runningSources(),
-                                           isReachable: { isControllerReachable(candidate: $0) }) else {
+
+        // Layer B：无有效配置文件时，若已知客户端在运行，后台非阻塞探测其默认回环端口 `/version`。
+        let knownOrder: [ProxyClientSource] = [.bettbox, .clashVerge, .mihomoParty, .flClash, .clashX, .mihomo]
+        let matchedSource: ProxyClientSource? = (source == .auto)
+            ? knownOrder.first(where: { running.contains($0.sourceId) })
+            : (running.contains(source.sourceId) ? source : nil)
+        let allowHostLoopback = (loopbackFallbackOverride != nil)
+            || (home.standardizedFileURL == FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL)
+        guard let matchedSource, allowHostLoopback,
+              let fallbackOrigin = loopbackFallbackOverride?(matchedSource) ?? probeDefaultLoopbackOrigin(for: matchedSource),
+              let rawHost = fallbackOrigin.host?.lowercased(),
+              isLoopback(rawHost),
+              let port = fallbackOrigin.port,
+              (1...65535).contains(port) else {
             return .failure(.missing)
         }
-        return resolved(chosen)
+
+        let displayHost = (rawHost.contains(":") && !rawHost.hasPrefix("[")) ? "[\(rawHost)]" : rawHost
+        let loc = defaultLocation(for: matchedSource, home: home)
+        let modified = loc.profileURL.map(modificationDate(of:)) ?? modificationDate(of: loc.configURL)
+        let originString = "http://\(displayHost):\(port)"
+        return .success(ResolvedProxyConfig(source: matchedSource,
+                                            sourceId: matchedSource.sourceId,
+                                            configURL: loc.configURL,
+                                            profileURL: loc.profileURL,
+                                            profileKind: loc.profileKind,
+                                            text: "external-controller: \(displayHost):\(port)\n",
+                                            modified: modified,
+                                            isJSON: false,
+                                            controllerOrigin: originString,
+                                            secretFingerprint: "none",
+                                            isLoopbackFallback: true))
     }
 
-    /// 自动检测优先级：运行中客户端 → 控制器可达 → 最近修改。
+    static func selectPreferred(_ candidates: [ProxyConfigCandidate],
+                                isReachable: (ProxyConfigCandidate) -> Bool) -> ProxyConfigCandidate? {
+        guard !candidates.isEmpty else { return nil }
+        if candidates.count > 1, let reachable = candidates.first(where: isReachable) {
+            return reachable
+        }
+        return candidates[0]
+    }
+
+    /// 自动检测优先级：运行中客户端（同客户端多候选按可达性择优）→ 控制器可达 → 最近修改。
     static func selectCandidate(_ candidates: [ProxyConfigCandidate],
                                 running: Set<String>,
                                 isReachable: (ProxyConfigCandidate) -> Bool) -> ProxyConfigCandidate? {
         guard !candidates.isEmpty else { return nil }
-        if let runningOne = candidates.first(where: { running.contains($0.sourceId) }) {
-            return runningOne
+        let runningCandidates = candidates.filter { running.contains($0.sourceId) }
+        if !runningCandidates.isEmpty {
+            return selectPreferred(runningCandidates, isReachable: isReachable)
         }
         if candidates.count > 1, let reachable = candidates.first(where: isReachable) {
             return reachable
@@ -456,17 +815,20 @@ struct BettboxClient {
         return result
     }
 
-    /// 控制器可达性缓存（15s）。同步路径只读缓存：未命中时返回 false，并在后台异步探测 `/version`
-    /// 刷新缓存供下一次 tick 使用，绝不在调用线程等待网络。
+    /// 控制器可达性 SWR 缓存（15s）：未命中冷缓存返回 false 并后台探测 `/version`；
+    /// 已过期时先返回上次已知状态并后台刷新，防止 TTL 到期瞬间抖动回退到旧文件。
     private static let reachabilityLock = NSLock()
     private static var reachabilityCache: [String: (until: Date, ok: Bool)] = [:]
     private static var reachabilityInFlight: Set<String> = []
     private static let reachabilityQueue = DispatchQueue(label: "app.zest.bettbox.reachability", qos: .utility)
 
     private static func isControllerReachable(candidate: ProxyConfigCandidate) -> Bool {
-        let key = candidate.sourceId + "|" + candidate.configURL.path
+        guard case .success(let snap) = snapshot(for: candidate) else { return false }
+        let key = "\(candidate.sourceId)|\(candidate.configURL.path)|\(snap.controllerOrigin)|\(snap.secretFingerprint)"
+        let now = Date()
         reachabilityLock.lock()
-        if let cached = reachabilityCache[key], cached.until > Date() {
+        let cached = reachabilityCache[key]
+        if let cached, cached.until > now {
             reachabilityLock.unlock()
             return cached.ok
         }
@@ -475,12 +837,12 @@ struct BettboxClient {
         reachabilityLock.unlock()
 
         if shouldProbe {
-            // 后台低开销探测（严格只连回环地址）；本次调用按「不可达」继续走最近修改兜底。
+            // 后台低开销探测（严格只连回环地址）。
             reachabilityQueue.async {
                 probeReachability(candidate: candidate, key: key)
             }
         }
-        return false
+        return cached?.ok ?? false
     }
 
     private static func probeReachability(candidate: ProxyConfigCandidate, key: String) {
@@ -500,6 +862,64 @@ struct BettboxClient {
         reachabilityCache[key] = (Date().addingTimeInterval(15), ok)
         reachabilityInFlight.remove(key)
         reachabilityLock.unlock()
+    }
+
+    /// 默认回环端口无密 `/version` 探测 SWR 缓存（15s），绝不阻塞调用线程。
+    private static let loopbackProbeLock = NSLock()
+    private static var loopbackProbeCache: [String: (until: Date, origin: URL?)] = [:]
+    private static var loopbackProbeInFlight: Set<String> = []
+
+    private static func probeDefaultLoopbackOrigin(for clientSource: ProxyClientSource) -> URL? {
+        let ports = defaultControllerPorts(for: clientSource)
+        guard !ports.isEmpty else { return nil }
+        let key = clientSource.sourceId
+        let now = Date()
+        loopbackProbeLock.lock()
+        let cached = loopbackProbeCache[key]
+        if let cached, cached.until > now {
+            loopbackProbeLock.unlock()
+            return cached.origin
+        }
+        let shouldProbe = !loopbackProbeInFlight.contains(key)
+        if shouldProbe { loopbackProbeInFlight.insert(key) }
+        loopbackProbeLock.unlock()
+
+        if shouldProbe {
+            reachabilityQueue.async {
+                probeDefaultPortsSequentially(ports: ports, index: 0, key: key)
+            }
+        }
+        return cached?.origin ?? nil
+    }
+
+    private static func probeDefaultPortsSequentially(ports: [Int], index: Int, key: String) {
+        guard index < ports.count else {
+            storeLoopbackProbe(key: key, origin: nil)
+            return
+        }
+        let port = ports[index]
+        guard let origin = URL(string: "http://127.0.0.1:\(port)") else {
+            probeDefaultPortsSequentially(ports: ports, index: index + 1, key: key)
+            return
+        }
+        var request = URLRequest(url: origin.appendingPathComponent("version"), timeoutInterval: 0.4)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.httpMethod = "GET"
+        let task = loopbackSession.dataTask(with: request) { data, response, _ in
+            if isValidVersionResponse(data: data, response: response) {
+                storeLoopbackProbe(key: key, origin: origin)
+            } else {
+                probeDefaultPortsSequentially(ports: ports, index: index + 1, key: key)
+            }
+        }
+        task.resume()
+    }
+
+    private static func storeLoopbackProbe(key: String, origin: URL?) {
+        loopbackProbeLock.lock()
+        loopbackProbeCache[key] = (Date().addingTimeInterval(15), origin)
+        loopbackProbeInFlight.remove(key)
+        loopbackProbeLock.unlock()
     }
 
     /// 配置目录（kqueue 目录监听目标）。切源后随来源变化。
@@ -691,11 +1111,22 @@ struct BettboxClient {
     }
 
     /// 来源感知的指纹：当前来源标识 + 配置文件签名 + profileId。切换来源或热切配置都会变化。
-    static func configFingerprint(forSource source: ProxyClientSource, customPath: String = "") -> String {
-        guard case .success(let resolved) = resolve(source: source, customPath: customPath) else {
+    /// JSON 配置时剥离 UI 字段 mtime 噪音，仅跟踪控制器、secret 摘要、当前 profileId 与对应 profile YAML 签名。
+    static func configFingerprint(forSource source: ProxyClientSource,
+                                  customPath: String = "",
+                                  home: URL = FileManager.default.homeDirectoryForCurrentUser) -> String {
+        guard case .success(let resolved) = resolve(source: source, customPath: customPath, home: home) else {
             return "missing|\(source.rawValue)"
         }
         let profileId = profile(for: resolved).id
+        if resolved.isLoopbackFallback {
+            return "\(source.rawValue)|\(resolved.sourceId)|loopback|\(resolved.controllerOrigin)|\(profileId)"
+        }
+        if resolved.isJSON {
+            let profileYamlSig = profileYAMLURL(forConfigURL: resolved.configURL, profileId: profileId)
+                .map(fileSignature) ?? "-"
+            return "\(source.rawValue)|\(resolved.sourceId)|json|\(resolved.controllerOrigin)|\(resolved.secretFingerprint)|\(profileId)|\(profileYamlSig)"
+        }
         return "\(source.rawValue)|\(resolved.sourceId)|\(fileSignature(resolved.configURL))|\(profileId)"
     }
 
@@ -822,12 +1253,23 @@ struct BettboxClient {
         return authorizedRequest(url: url, timeout: TimeInterval(clampedTimeout) / 1000.0 + 2.5)
     }
 
-    /// 异步探测 `/version`（后台自动检测用，0.4s 超时，仅走回环会话）。绝不阻塞调用线程。
+    private static func isValidVersionResponse(data: Data?, response: URLResponse?) -> Bool {
+        guard (response as? HTTPURLResponse)?.statusCode == 200,
+              let data,
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let version = json["version"] as? String,
+              !version.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+        return true
+    }
+
+    /// 异步探测 `/version`（后台自动检测用，0.4s 超时，仅走回环会话，要求返回 JSON 含非空 `"version"`）。绝不阻塞调用线程。
     func probeVersion(completion: @escaping (Bool) -> Void) {
         var request = authorizedRequest(url: origin.appendingPathComponent("version"), timeout: 0.4)
         request.httpMethod = "GET"
-        let task = Self.loopbackSession.dataTask(with: request) { _, response, _ in
-            completion((response as? HTTPURLResponse)?.statusCode == 200)
+        let task = Self.loopbackSession.dataTask(with: request) { data, response, _ in
+            completion(Self.isValidVersionResponse(data: data, response: response))
         }
         task.resume()
     }

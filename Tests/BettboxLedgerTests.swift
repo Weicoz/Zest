@@ -418,5 +418,345 @@ final class ProxyClientSourceTests: XCTestCase {
         XCTAssertTrue(second.text.contains("9091"))
         XCTAssertFalse(second.text.contains("9090"))
     }
+
+    func testBettbox120JsonFallbackResolvesControllerSecretProfileAndGroupOrder() throws {
+        let json = """
+        {
+          "currentProfileId": "p-120",
+          "profiles": [
+            {"id": "p-old", "label": "Old"},
+            {"id": "p-120", "label": "Bettbox120"}
+          ],
+          "patchClashConfig": {
+            "external-controller": "127.0.0.1:9090",
+            "external-controller-port": 9090,
+            "secret": "bb120-secret"
+          }
+        }
+        """
+        write("Library/Application Support/com.appshub.bettbox/config.json", json)
+        write("Library/Application Support/com.appshub.bettbox/profiles/p-120.yaml", """
+        proxy-groups:
+          - name: 节点选择
+            type: select
+          - name: 自动选择
+            type: url-test
+          - name: AI 专线
+            type: select
+        """)
+
+        let list = BettboxClient.candidates(home: home)
+        let bettboxCandidate = list.first { $0.source == .bettbox }
+        XCTAssertEqual(bettboxCandidate?.configURL.lastPathComponent, "config.json")
+
+        guard case .success(let byBettbox) = BettboxClient.resolve(source: .bettbox, home: home) else {
+            return XCTFail("bettbox source should fall back to config.json")
+        }
+        XCTAssertTrue(byBettbox.isJSON)
+        XCTAssertEqual(byBettbox.configURL.lastPathComponent, "config.json")
+
+        guard case .success(let byAuto) = BettboxClient.resolve(source: .auto, home: home) else {
+            return XCTFail("auto source should resolve bettbox config.json")
+        }
+        XCTAssertEqual(byAuto.source, .bettbox)
+        XCTAssertEqual(BettboxClient.resolvedDisplayName(source: .auto, home: home), "Bettbox")
+        XCTAssertEqual(BettboxClient.profile(for: byBettbox), BettboxProfileInfo(id: "p-120", label: "Bettbox120"))
+
+        let client = try BettboxClient.load(source: .bettbox, home: home).get()
+        XCTAssertEqual(client.request().url?.absoluteString, "http://127.0.0.1:9090/connections")
+        XCTAssertEqual(client.request().value(forHTTPHeaderField: "Authorization"), "Bearer bb120-secret")
+        XCTAssertEqual(client.groupOrder, ["节点选择", "自动选择", "AI 专线"])
+    }
+
+    func testBettboxJsonPortFallbackNonLocalRejectionAndYamlPrecedence() throws {
+        // 1. external-controller 为空时回退 external-controller-port
+        let portFallbackCfg = """
+        {"patchClashConfig":{"external-controller":"","external-controller-port":9091,"secret":"s1"}}
+        """
+        let fallbackClient = try BettboxClient.make(
+            config: portFallbackCfg,
+            configURL: home.appendingPathComponent("fallback/config.json")
+        ).get()
+        XCTAssertEqual(fallbackClient.request().url?.absoluteString, "http://127.0.0.1:9091/connections")
+
+        // 2. external-controller 为非回环地址时即使存在 external-controller-port 也必须拒绝
+        let nonLocalCfg = """
+        {"patchClashConfig":{"external-controller":"10.0.0.2:9090","external-controller-port":9090}}
+        """
+        if case .failure(let err) = BettboxClient.make(
+            config: nonLocalCfg,
+            configURL: home.appendingPathComponent("nonlocal/config.json")
+        ) {
+            XCTAssertEqual(err, .nonLocal)
+        } else {
+            XCTFail("non-loopback external-controller must return .nonLocal")
+        }
+
+        // 3. 无 patchClashConfig / 端口 0 / 布尔端口返回 .missing
+        for badCfg in [
+            "{}",
+            #"{"patchClashConfig":{"external-controller-port":0}}"#,
+            #"{"patchClashConfig":{"external-controller-port":true}}"#,
+        ] {
+            if case .failure(let err) = BettboxClient.make(
+                config: badCfg,
+                configURL: home.appendingPathComponent("bad/config.json")
+            ) {
+                XCTAssertEqual(err, .missing)
+            } else {
+                XCTFail("invalid json config must return .missing: \(badCfg)")
+            }
+        }
+
+        // 4. 同时存在有效 config.yaml 与 config.json 时优先 config.yaml
+        write("Library/Application Support/com.appshub.bettbox/config.yaml",
+              "external-controller: 127.0.0.1:9092\nsecret: yaml-sec\n")
+        write("Library/Application Support/com.appshub.bettbox/config.json",
+              #"{"currentProfileId":"p1","patchClashConfig":{"external-controller":"127.0.0.1:9090","secret":"json-sec"}}"#)
+
+        guard case .success(let resolved) = BettboxClient.resolve(source: .bettbox, home: home) else {
+            return XCTFail("resolve should succeed when both yaml and json exist")
+        }
+        XCTAssertEqual(resolved.configURL.lastPathComponent, "config.yaml")
+        let client = try BettboxClient.load(source: .bettbox, home: home).get()
+        XCTAssertEqual(client.request().url?.absoluteString, "http://127.0.0.1:9092/connections")
+    }
+
+    func testBettboxJsonFingerprintIgnoresUiWritesButReactsToRealChanges() throws {
+        func bettboxJSON(profileId: String, port: Int, secret: String, windowWidth: Int? = nil) -> String {
+            var extra = ""
+            if let windowWidth {
+                extra = #","windowProps":{"width":\#(windowWidth)}"#
+            }
+            return """
+            {
+              "currentProfileId": "\(profileId)",
+              "profiles": [
+                {"id": "p1", "label": "P1"},
+                {"id": "p2", "label": "P2"}
+              ],
+              "patchClashConfig": {
+                "external-controller": "127.0.0.1:\(port)",
+                "external-controller-port": \(port),
+                "secret": "\(secret)"
+              }\(extra)
+            }
+            """
+        }
+
+        write("Library/Application Support/com.appshub.bettbox/profiles/p1.yaml",
+              "proxy-groups:\n  - name: 组A\n    type: select\n")
+        write("Library/Application Support/com.appshub.bettbox/profiles/p2.yaml",
+              "proxy-groups:\n  - name: 组P2\n    type: select\n")
+        write("Library/Application Support/com.appshub.bettbox/config.json",
+              bettboxJSON(profileId: "p1", port: 9090, secret: "sec-alpha"))
+
+        let fp1 = BettboxClient.configFingerprint(forSource: .bettbox, home: home)
+        XCTAssertFalse(fp1.contains("sec-alpha"))
+        XCTAssertFalse(fp1.hasPrefix("missing|"))
+
+        // 仅写入 UI 字段时指纹保持不变
+        write("Library/Application Support/com.appshub.bettbox/config.json",
+              bettboxJSON(profileId: "p1", port: 9090, secret: "sec-alpha", windowWidth: 1440))
+        let fp2 = BettboxClient.configFingerprint(forSource: .bettbox, home: home)
+        XCTAssertEqual(fp1, fp2)
+
+        // 修改当前 profile YAML 后指纹改变且 load 返回新 groupOrder
+        write("Library/Application Support/com.appshub.bettbox/profiles/p1.yaml",
+              "proxy-groups:\n  - name: 新组B\n    type: select\n  - name: 组A\n    type: select\n")
+        let fp3 = BettboxClient.configFingerprint(forSource: .bettbox, home: home)
+        XCTAssertNotEqual(fp2, fp3)
+        let updatedClient = try BettboxClient.load(source: .bettbox, home: home).get()
+        XCTAssertEqual(updatedClient.groupOrder, ["新组B", "组A"])
+
+        // 切换 currentProfileId 后指纹改变
+        write("Library/Application Support/com.appshub.bettbox/config.json",
+              bettboxJSON(profileId: "p2", port: 9090, secret: "sec-alpha", windowWidth: 1440))
+        let fp4 = BettboxClient.configFingerprint(forSource: .bettbox, home: home)
+        XCTAssertNotEqual(fp3, fp4)
+
+        // 修改 secret 后指纹改变，且新明文不进指纹
+        write("Library/Application Support/com.appshub.bettbox/config.json",
+              bettboxJSON(profileId: "p2", port: 9090, secret: "sec-beta", windowWidth: 1440))
+        let fp5 = BettboxClient.configFingerprint(forSource: .bettbox, home: home)
+        XCTAssertNotEqual(fp4, fp5)
+        XCTAssertFalse(fp5.contains("sec-beta"))
+
+        // 修改端口后指纹改变
+        write("Library/Application Support/com.appshub.bettbox/config.json",
+              bettboxJSON(profileId: "p2", port: 9095, secret: "sec-beta", windowWidth: 1440))
+        let fp6 = BettboxClient.configFingerprint(forSource: .bettbox, home: home)
+        XCTAssertNotEqual(fp5, fp6)
+    }
+
+    func testMultiCandidateSameSourcePrefersReachableOverStaleYaml() {
+        write("Library/Application Support/com.appshub.bettbox/config.yaml",
+              "external-controller: 127.0.0.1:9092\nsecret: old-yaml\n")
+        write("Library/Application Support/com.appshub.bettbox/config.json",
+              #"{"currentProfileId":"p1","patchClashConfig":{"external-controller":"127.0.0.1:9090","secret":"new-json"}}"#)
+
+        let jsonReachable: (ProxyConfigCandidate) -> Bool = { $0.configURL.lastPathComponent == "config.json" }
+        let yamlReachable: (ProxyConfigCandidate) -> Bool = { $0.configURL.lastPathComponent == "config.yaml" }
+
+        guard case .success(let autoPicked) = BettboxClient.resolve(
+            source: .auto,
+            home: home,
+            runningOverride: ["bettbox"],
+            reachabilityOverride: jsonReachable
+        ) else { return XCTFail("auto should select reachable json") }
+        XCTAssertEqual(autoPicked.configURL.lastPathComponent, "config.json")
+
+        guard case .success(let explicitPicked) = BettboxClient.resolve(
+            source: .bettbox,
+            home: home,
+            runningOverride: ["bettbox"],
+            reachabilityOverride: jsonReachable
+        ) else { return XCTFail("explicit source should select reachable json") }
+        XCTAssertEqual(explicitPicked.configURL.lastPathComponent, "config.json")
+
+        guard case .success(let yamlPicked) = BettboxClient.resolve(
+            source: .bettbox,
+            home: home,
+            runningOverride: ["bettbox"],
+            reachabilityOverride: yamlReachable
+        ) else { return XCTFail("explicit source should keep config.yaml when reachable") }
+        XCTAssertEqual(yamlPicked.configURL.lastPathComponent, "config.yaml")
+    }
+
+    func testJsonSchemaEvolutionAndFlClashJsonFallback() throws {
+        let camelCfg = """
+        {
+          "clashConfig": {
+            "externalController": "127.0.0.1:9093",
+            "externalControllerSecret": "camel-sec",
+            "proxyGroups": [{"name": "主选"}, {"name": "备用"}]
+          }
+        }
+        """
+        let camelClient = try BettboxClient.make(
+            config: camelCfg,
+            configURL: home.appendingPathComponent("camel/config.json")
+        ).get()
+        XCTAssertEqual(camelClient.request().url?.absoluteString, "http://127.0.0.1:9093/connections")
+        XCTAssertEqual(camelClient.request().value(forHTTPHeaderField: "Authorization"), "Bearer camel-sec")
+        XCTAssertEqual(camelClient.groupOrder, ["主选", "备用"])
+
+        let camelPortCfg = #"{"clashConfig":{"externalControllerPort":9098,"secret":"p-sec"}}"#
+        let camelPortClient = try BettboxClient.make(
+            config: camelPortCfg,
+            configURL: home.appendingPathComponent("camel-port/config.json")
+        ).get()
+        XCTAssertEqual(camelPortClient.request().url?.absoluteString, "http://127.0.0.1:9098/connections")
+
+        let flatCfg = #"{"external-controller":"localhost:9094","secret":"flat-sec"}"#
+        let flatClient = try BettboxClient.make(
+            config: flatCfg,
+            configURL: home.appendingPathComponent("flat/config.json")
+        ).get()
+        XCTAssertEqual(flatClient.request().url?.absoluteString, "http://localhost:9094/connections")
+        XCTAssertEqual(flatClient.request().value(forHTTPHeaderField: "Authorization"), "Bearer flat-sec")
+
+        let proxyPortOnlyCfg = #"{"patchClashConfig":{"port":7890,"mixed-port":7897}}"#
+        if case .failure(let err) = BettboxClient.make(
+            config: proxyPortOnlyCfg,
+            configURL: home.appendingPathComponent("proxyport/config.json")
+        ) {
+            XCTAssertEqual(err, .missing)
+        } else {
+            XCTFail("proxy port must not be treated as controller port")
+        }
+
+        write("Library/Application Support/com.follow.clash/config.json",
+              #"{"currentProfileId":"fl-120","patchClashConfig":{"external-controller":"127.0.0.1:9099","secret":"fl-sec"}}"#)
+        guard case .success(let flResolved) = BettboxClient.resolve(source: .flClash, home: home) else {
+            return XCTFail("flClash should fall back to config.json")
+        }
+        XCTAssertEqual(flResolved.source, .flClash)
+        XCTAssertEqual(flResolved.configURL.lastPathComponent, "config.json")
+        XCTAssertEqual(BettboxClient.profile(for: flResolved).id, "fl-120")
+        let flClient = try BettboxClient.load(source: .flClash, home: home).get()
+        XCTAssertEqual(flClient.request().url?.absoluteString, "http://127.0.0.1:9099/connections")
+        XCTAssertEqual(flClient.request().value(forHTTPHeaderField: "Authorization"), "Bearer fl-sec")
+    }
+
+    func testJsonFallsBackToActiveProfileYamlControllerAndRefreshes() throws {
+        write("Library/Application Support/com.appshub.bettbox/config.json",
+              #"{"currentProfileId":"prof-only","profiles":[{"id":"prof-only","label":"ProfileOnly"}]}"#)
+        write("Library/Application Support/com.appshub.bettbox/profiles/prof-only.yaml",
+              "external-controller: 127.0.0.1:9094\nsecret: prof-sec\nproxy-groups:\n  - name: 组1\n    type: select\n")
+
+        guard case .success(let firstResolved) = BettboxClient.resolve(source: .bettbox, home: home) else {
+            return XCTFail("should fall back to active profile yaml controller")
+        }
+        XCTAssertTrue(firstResolved.isJSON)
+        let firstClient = try BettboxClient.load(source: .bettbox, home: home).get()
+        XCTAssertEqual(firstClient.request().url?.absoluteString, "http://127.0.0.1:9094/connections")
+        XCTAssertEqual(firstClient.request().value(forHTTPHeaderField: "Authorization"), "Bearer prof-sec")
+        let fp1 = BettboxClient.configFingerprint(forSource: .bettbox, home: home)
+
+        write("Library/Application Support/com.appshub.bettbox/profiles/prof-only.yaml",
+              "external-controller: 127.0.0.1:9096\nsecret: prof-sec\nproxy-groups:\n  - name: 组2\n    type: select\n")
+        let secondClient = try BettboxClient.load(source: .bettbox, home: home).get()
+        XCTAssertEqual(secondClient.request().url?.absoluteString, "http://127.0.0.1:9096/connections")
+        XCTAssertEqual(secondClient.groupOrder, ["组2"])
+        let fp2 = BettboxClient.configFingerprint(forSource: .bettbox, home: home)
+        XCTAssertNotEqual(fp1, fp2)
+
+        write("Library/Application Support/com.appshub.bettbox/profiles/prof-only.yaml",
+              "external-controller: 192.0.2.88:9090\n")
+        if case .failure(let err) = BettboxClient.resolve(source: .bettbox, home: home) {
+            XCTAssertEqual(err, .nonLocal)
+        } else {
+            XCTFail("non-loopback controller in active profile yaml must return .nonLocal")
+        }
+    }
+
+    func testRunningClientLoopbackFallbackRespectsSecurityAndIsolation() throws {
+        let loopbackProvider: (ProxyClientSource) -> URL? = { source in
+            source == .bettbox ? URL(string: "http://127.0.0.1:9090") : nil
+        }
+
+        guard case .success(let fallback) = BettboxClient.resolve(
+            source: .auto,
+            home: home,
+            runningOverride: ["bettbox"],
+            loopbackFallbackOverride: loopbackProvider
+        ) else {
+            return XCTFail("running client should allow loopback fallback when configs are absent")
+        }
+        XCTAssertEqual(fallback.source, .bettbox)
+        XCTAssertTrue(fallback.isLoopbackFallback)
+        XCTAssertEqual(fallback.controllerOrigin, "http://127.0.0.1:9090")
+        let client = try BettboxClient.make(config: fallback.text,
+                                            source: fallback.source,
+                                            sourceId: fallback.sourceId,
+                                            configURL: fallback.configURL).get()
+        XCTAssertEqual(client.request().url?.absoluteString, "http://127.0.0.1:9090/connections")
+
+        if case .failure(let customErr) = BettboxClient.resolve(
+            source: .custom,
+            customPath: home.appendingPathComponent("missing.yaml").path,
+            home: home,
+            runningOverride: ["bettbox"],
+            loopbackFallbackOverride: loopbackProvider
+        ) {
+            XCTAssertEqual(customErr, .missing)
+        } else {
+            XCTFail("custom missing path must never use loopback fallback")
+        }
+
+        write("Library/Application Support/com.appshub.bettbox/config.json",
+              #"{"patchClashConfig":{"external-controller":"10.0.0.5:9090"}}"#)
+        if case .failure(let nonLocalErr) = BettboxClient.resolve(
+            source: .auto,
+            home: home,
+            runningOverride: ["bettbox"],
+            loopbackFallbackOverride: loopbackProvider
+        ) {
+            XCTAssertEqual(nonLocalErr, .nonLocal)
+        } else {
+            XCTFail("non-local controller must reject even when running and loopback fallback provided")
+        }
+    }
 }
 
