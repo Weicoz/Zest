@@ -2,7 +2,7 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>Zest Plus</title>
-    <link>https://github.com/Weicoz/Zest/releases</link>
+    <link>https://github.com/Weicoz/Zest-plus/releases</link>
     <description>Zest Plus 当前通过 GitHub Releases 分发，已停用原版 Sparkle 自动更新。</description>
     <language>zh-Hans</language>
   </channel>

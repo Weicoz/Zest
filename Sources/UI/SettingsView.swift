@@ -249,7 +249,7 @@ private struct AboutView: View {
                 Text(L10n.text("Zest Plus 已停用原版自动更新，新版本请前往 GitHub Releases 获取。"))
                     .font(.caption).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                Link("GitHub Releases", destination: URL(string: "https://github.com/Weicoz/Zest/releases")!)
+                Link("GitHub Releases", destination: URL(string: "https://github.com/Weicoz/Zest-plus/releases")!)
                     .font(.caption)
             }
             Divider().padding(.horizontal, 40)

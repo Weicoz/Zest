@@ -2,7 +2,7 @@
 
 轻量的 macOS 菜单栏系统监控，基于 [Zest](https://github.com/biyan113/Zest) 二次开发，Swift + SwiftUI 原生实现。
 
-下载：[GitHub Releases](https://github.com/Weicoz/Zest/releases)（macOS 13 及以上）。
+下载：[GitHub Releases](https://github.com/Weicoz/Zest-plus/releases)（macOS 13 及以上）。
 
 ## 增强功能
 
