@@ -154,6 +154,7 @@ final class AnomalyDetector {
             }
             let app = appsByKey[flow.appKey]
             let name = app?.name ?? flow.appName
+            let isRelay = NetworkRelayClassifier.role(appKey: flow.appKey, appName: name, bundlePath: app?.bundlePath) != nil
 
             if flow.isEstablished && flow.scope == .internet {
                 if !knownInternetApps.contains(flow.appKey) {
@@ -164,7 +165,7 @@ final class AnomalyDetector {
                              cooldown: .infinity)
                     }
                 }
-                if flow.proto == .tcp && AnomalyDetector.plaintextPorts.contains(remote.port) {
+                if !isRelay && flow.proto == .tcp && AnomalyDetector.plaintextPorts.contains(remote.port) {
                     fire(.plaintext, key: "\(flow.appKey)|\(remote.address)|\(remote.port)", app: app, appKey: flow.appKey,
                          appName: name,
                          detail: String(format: L10n.text("%1$@ 通过未加密的 %2$@ 连接 %3$@，内容可能被他人读取。"),
@@ -180,8 +181,8 @@ final class AnomalyDetector {
                 }
             }
 
-            // 周期性外连：同一应用不断新建到同一远端的连接，且间隔高度规律。
-            if isNew && flow.scope == .internet {
+            // 周期性外连：同一应用不断新建到同一远端的连接，且间隔高度规律。网关/组网跳过，避免转发健康检查误报。
+            if !isRelay && isNew && flow.scope == .internet {
                 let k = "\(flow.appKey)|\(remote.address)"
                 var times = newFlowTimes[k, default: []]
                 times.append(now)

@@ -6,12 +6,27 @@
 import Charts
 import SwiftUI
 
+struct RelayRoleTag: View {
+    var role: NetworkRelayRole
+
+    var body: some View {
+        let tint = role == .proxyGateway ? Palette.download : Palette.compressed
+        Text(role.title)
+            .font(.system(size: 8.5, weight: .semibold))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .background(RoundedRectangle(cornerRadius: 3).fill(tint.opacity(0.14)))
+    }
+}
+
 struct NetworkAppsPage: View {
     @ObservedObject var monitor: NetworkMonitor
     @ObservedObject var settings: AppSettings
     @Binding var selection: String?
     @State private var search = ""
     @State private var showSystem = true
+    @State private var showRelay = true
     @AppStorage("appsRange") private var range = AppsRange.hour
 
     var body: some View {
@@ -19,10 +34,14 @@ struct NetworkAppsPage: View {
         let apps = filteredApps
         HSplitView {
             VStack(spacing: 0) {
-                HStack {
+                HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
                     TextField(L10n.text("搜索应用"), text: $search).textFieldStyle(.plain)
-                    Toggle(L10n.text("kind.system", defaultValue: "系统"), isOn: $showSystem).toggleStyle(.checkbox).font(.system(size: 11))
+                        .frame(minWidth: 50)
+                    Toggle(L10n.text("kind.system", defaultValue: "系统"), isOn: $showSystem)
+                        .toggleStyle(.checkbox).font(.system(size: 11)).fixedSize()
+                    Toggle(L10n.text("kind.relay", defaultValue: "网关/组网"), isOn: $showRelay)
+                        .toggleStyle(.checkbox).font(.system(size: 11)).fixedSize()
                 }
                 .padding(8)
                 HStack(spacing: 4) {
@@ -40,6 +59,7 @@ struct NetworkAppsPage: View {
                             HStack(spacing: 4) {
                                 Text(app.name).font(.system(size: 12)).lineLimit(1)
                                 if app.kind == .system { KindTag(kind: .system) }
+                                if let role = app.relayRole { RelayRoleTag(role: role) }
                             }
                             Text("↓\(Fmt.compactRate(app.rateIn))  ↑\(Fmt.compactRate(app.rateOut))")
                                 .font(.system(size: 10).monospacedDigit()).foregroundStyle(.secondary)
@@ -83,6 +103,7 @@ struct NetworkAppsPage: View {
         }
         return base
             .filter { showSystem || $0.kind != .system }
+            .filter { showRelay || !$0.isRelay }
             .filter { search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) }
     }
 
@@ -124,6 +145,7 @@ private struct AppDetail: View {
                         HStack(spacing: 6) {
                             Text(app.name).font(.system(size: 18, weight: .bold))
                             KindTag(kind: app.kind)
+                            if let role = app.relayRole { RelayRoleTag(role: role) }
                         }
                         Text(app.bundlePath ?? (app.pids.isEmpty ? L10n.text("已退出") : "PID " + app.pids.sorted().map(String.init).joined(separator: ", ")))
                             .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
@@ -150,6 +172,22 @@ private struct AppDetail: View {
                     }
                     KPI(title: L10n.text("活跃连接"), value: "\(flows.filter(\.isEstablished).count)",
                         sub: String(format: L10n.text("监听 %lld"), Int64(flows.filter(\.isListening).count)), size: 16)
+                }
+                if let role = app.relayRole {
+                    HStack(spacing: 6) {
+                        Image(systemName: role == .proxyGateway ? "arrow.triangle.branch" : "point.3.connected.trianglepath.dotted")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Text(role == .proxyGateway
+                             ? L10n.text("apps.relayNote.gateway", defaultValue: "代理网关进程，流量为经本机代理转发的汇总值；各应用明细请查看「链路」页。")
+                             : L10n.text("apps.relayNote.mesh", defaultValue: "组网隧道进程，流量为加密隧道汇总值（含下游经虚拟网卡发送的流量）。"))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
                 }
                 Card {
                     if range == .hour {

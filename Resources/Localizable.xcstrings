@@ -11118,6 +11118,114 @@
           }
         }
       }
+    },
+    "network.role.gateway" : {
+      "comment" : "应用/总览页：代理网关进程标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gateway"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网关"
+          }
+        }
+      }
+    },
+    "network.role.mesh" : {
+      "comment" : "应用/总览页：组网隧道进程标签",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesh VPN"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "组网"
+          }
+        }
+      }
+    },
+    "kind.relay" : {
+      "comment" : "应用列表工具栏：是否显示网关或组网中继进程",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relays"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网关/组网"
+          }
+        }
+      }
+    },
+    "apps.relayNote.gateway" : {
+      "comment" : "应用详情：代理网关流量汇总提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Proxy gateway process. Traffic reflects aggregated relayed bytes; see Links for per-app attribution."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "代理网关进程，流量为经本机代理转发的汇总值；各应用明细请查看「链路」页。"
+          }
+        }
+      }
+    },
+    "apps.relayNote.mesh" : {
+      "comment" : "应用详情：组网隧道流量汇总提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mesh VPN tunnel process. Traffic reflects encrypted tunnel totals, including downstream traffic over virtual interfaces."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "组网隧道进程，流量为加密隧道汇总值（含下游经虚拟网卡发送的流量）。"
+          }
+        }
+      }
+    },
+    "live.waiting" : {
+      "comment" : "总览页实时折线图：尚无采样点时的等待提示",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for live samples..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待实时采样…"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

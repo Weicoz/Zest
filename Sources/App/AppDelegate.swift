@@ -356,9 +356,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         guard let executable = Bundle.main.executableURL else { return }
+        let seedURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("zest-live-seed-\(UUID().uuidString).json")
+        network.exportLiveSeed(to: seedURL)
         let task = Process()
         task.executableURL = executable
-        task.arguments = ["--network-window"]
+        task.arguments = ["--network-window", "--live-seed", seedURL.path]
         task.terminationHandler = { [weak self] _ in
             DispatchQueue.main.async {
                 self?.viewerProcess = nil
@@ -373,6 +376,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             viewerProcess = task
             engine.setChildProcesses([task.processIdentifier])
         } catch {
+            try? FileManager.default.removeItem(at: seedURL)
             // 无法启动独立进程时退回到本进程内打开。
             presentNetworkWindowInProcess()
             if let page {
@@ -436,6 +440,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func launchAsNetworkViewer() {
         NSApp.setActivationPolicy(.regular)
+        if let seedIdx = CommandLine.arguments.firstIndex(of: "--live-seed"),
+           seedIdx + 1 < CommandLine.arguments.count {
+            let seedPath = CommandLine.arguments[seedIdx + 1]
+            network.preloadLiveSeed(from: URL(fileURLWithPath: seedPath))
+        }
         network.start()
         let controller = NetworkWindowController(monitor: network, settings: settings)
         controller.onClose = { NSApp.terminate(nil) }

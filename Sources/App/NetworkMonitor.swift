@@ -161,6 +161,39 @@ final class NetworkMonitor: ObservableObject {
         }
     }
 
+    /// 导出最近 5 分钟实时波形快照给刚打开的窗口进程，失败时静默忽略以免阻塞窗口展示。
+    func exportLiveSeed(to url: URL) {
+        let snapshot: LiveSeedSnapshot = queue.sync {
+            tracker.liveSeedSnapshot()
+        }
+        guard !snapshot.points.isEmpty,
+              let data = try? JSONEncoder().encode(snapshot) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+
+    /// 窗口进程启动时预加载主进程导出的最近 5 分钟波形，读完即删临时种子文件。
+    func preloadLiveSeed(from url: URL) {
+        queue.async { [self] in
+            defer { try? FileManager.default.removeItem(at: url) }
+            guard let data = try? Data(contentsOf: url),
+                  let snapshot = try? JSONDecoder().decode(LiveSeedSnapshot.self, from: data) else { return }
+            let now = Date()
+            let points = snapshot.resampled(now: now.timeIntervalSince1970,
+                                            stepSeconds: Double(Self.foregroundInterval),
+                                            capacity: NetworkTracker.liveCapacity)
+            guard !points.isEmpty else { return }
+            tracker.preloadLive(points, now: now, stepSeconds: Double(Self.foregroundInterval))
+            DispatchQueue.main.async { [self] in
+                guard self.state.sampledAt == nil else { return }
+                self.state.live = points
+                if self.state.rateIn == 0 && self.state.rateOut == 0, let last = points.last {
+                    self.state.rateIn = last.bytesIn
+                    self.state.rateOut = last.bytesOut
+                }
+            }
+        }
+    }
+
     /// 退出前同步写入未满一分钟的数据（异步写入可能来不及在进程退出前执行）。
     func flushSync() {
         guard role == .primary else { return }
@@ -253,7 +286,7 @@ final class NetworkMonitor: ObservableObject {
         }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/nettop")
-        task.arguments = ["-L", "1", "-x", "-n", "-t", "external", "-J", "state,bytes_in,bytes_out"]
+        task.arguments = ["-L", "1", "-x", "-n", "-t", "external", "-J", "interface,state,bytes_in,bytes_out"]
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = FileHandle.nullDevice

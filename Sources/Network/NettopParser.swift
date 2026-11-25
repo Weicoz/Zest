@@ -27,10 +27,22 @@ struct NettopConnectionRow: Equatable {
     var state: String
     var bytesIn: UInt64
     var bytesOut: UInt64
+    var interface: String = ""
+
+    var isTunnelOrP2PInterface: Bool {
+        let lower = interface.lowercased()
+        return ["utun", "ipsec", "gif", "stf", "awdl", "llw"].contains { lower.hasPrefix($0) }
+    }
+
+    var endpointKey: String {
+        "\(pid)|\(proto.rawValue)|\(local?.display ?? "*")|\(remote?.display ?? "*")"
+    }
 
     /// 用于跨采样识别同一条连接。
     var key: String {
-        "\(pid)|\(proto.rawValue)|\(local?.display ?? "*")|\(remote?.display ?? "*")"
+        interface.isEmpty
+            ? endpointKey
+            : "\(pid)|\(proto.rawValue)|\(interface)|\(local?.display ?? "*")|\(remote?.display ?? "*")"
     }
 }
 
@@ -41,6 +53,7 @@ struct NettopSample: Equatable {
 
 final class NettopParser {
     private var current: NettopSample?
+    private var interfaceIndex: Int?
     private var stateIndex = 1, inIndex = 2, outIndex = 3
 
     /// 逐行输入；遇到下一次采样的表头时返回上一份完整采样。
@@ -48,8 +61,10 @@ final class NettopParser {
         guard !line.isEmpty else { return nil }
         let fields = line.split(separator: ",", omittingEmptySubsequences: false)
         if line.hasPrefix(",") {
+            interfaceIndex = nil
             for (i, f) in fields.enumerated() {
                 switch f {
+                case "interface": interfaceIndex = i
                 case "state": stateIndex = i
                 case "bytes_in": inIndex = i
                 case "bytes_out": outIndex = i
@@ -61,12 +76,16 @@ final class NettopParser {
             return finished
         }
         guard current != nil, let head = fields.first else { return nil }
+        let iface = interfaceIndex.flatMap { field(fields, $0) }.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
         let bytesIn = field(fields, inIndex).flatMap { UInt64($0) } ?? 0
         let bytesOut = field(fields, outIndex).flatMap { UInt64($0) } ?? 0
 
-        if let conn = NettopParser.connection(String(head), state: field(fields, stateIndex) ?? "",
-                                              bytesIn: bytesIn, bytesOut: bytesOut,
-                                              pid: current?.processes.last?.pid ?? -1) {
+        if let conn = NettopParser.connection(String(head),
+                                              state: field(fields, stateIndex) ?? "",
+                                              bytesIn: bytesIn,
+                                              bytesOut: bytesOut,
+                                              pid: current?.processes.last?.pid ?? -1,
+                                              interface: iface) {
             current?.connections.append(conn)
         } else if let dot = head.lastIndex(of: "."), let pid = pid_t(head[head.index(after: dot)...]) {
             current?.processes.append(NettopProcessRow(name: String(head[..<dot]), pid: pid,
@@ -85,7 +104,8 @@ final class NettopParser {
         i < fields.count && !fields[i].isEmpty ? fields[i] : nil
     }
 
-    static func connection(_ head: String, state: Substring, bytesIn: UInt64, bytesOut: UInt64, pid: pid_t) -> NettopConnectionRow? {
+    static func connection(_ head: String, state: Substring, bytesIn: UInt64, bytesOut: UInt64, pid: pid_t,
+                           interface: String = "") -> NettopConnectionRow? {
         let protoToken = head.prefix(4)
         let proto: NetProtocol
         switch protoToken {
@@ -99,7 +119,7 @@ final class NettopParser {
         let local = endpoint(rest[..<arrow.lowerBound], v6: v6)
         let remote = endpoint(rest[arrow.upperBound...], v6: v6)
         return NettopConnectionRow(pid: pid, proto: proto, ipv6: v6, local: local, remote: remote,
-                                   state: String(state), bytesIn: bytesIn, bytesOut: bytesOut)
+                                   state: String(state), bytesIn: bytesIn, bytesOut: bytesOut, interface: interface)
     }
 
     /// IPv4 为 “地址:端口”，IPv6 为 “地址.端口”。端口为 “*” 时返回 nil；

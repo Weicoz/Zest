@@ -59,7 +59,7 @@ struct NetworkOverviewPage: View {
                 HStack(alignment: .top, spacing: 12) {
                     Card {
                         CardHeader(symbol: "waveform.path.ecg", title: L10n.text("实时（最近 5 分钟）"), tint: Palette.download)
-                        LiveChart(points: s.live).frame(height: 170)
+                        LiveChart(points: s.live, sampledAt: s.sampledAt).frame(height: 170)
                     }
                     Card {
                         if range == .hour {
@@ -246,33 +246,309 @@ struct DayChart: View {
     }
 }
 
+enum LiveWaveMath {
+    static func niceCeiling(maxValue: Double) -> Double {
+        max(maxValue * 1.15, 1024)
+    }
+
+    static func scrollSubStep(since arrival: Date?, now: Date,
+                              stepSeconds: TimeInterval = 2.0, pointCount: Int) -> Double {
+        guard pointCount >= 2, let arrival, stepSeconds > 0 else { return 0 }
+        return min(max(now.timeIntervalSince(arrival) / stepSeconds, 0), 1)
+    }
+
+    static func xCoordinate(index: Int, count: Int, capacity: Int,
+                            width: CGFloat, subStep: Double) -> CGFloat {
+        guard count > 1 else { return width }
+        let dx = width / CGFloat(max(capacity - 1, 1))
+        let trailingIndex = count - 2
+        return width - (CGFloat(trailingIndex - index) + CGFloat(subStep)) * dx
+    }
+
+    private static func monotoneCubicSlopes(for points: [CGPoint]) -> [CGFloat] {
+        let n = points.count
+        guard n >= 2 else { return Array(repeating: 0, count: n) }
+        var secant = [CGFloat](repeating: 0, count: n - 1)
+        for i in 0..<(n - 1) {
+            let dx = points[i + 1].x - points[i].x
+            secant[i] = abs(dx) > 1e-6 ? (points[i + 1].y - points[i].y) / dx : 0
+        }
+        var m = [CGFloat](repeating: 0, count: n)
+        m[0] = secant[0]
+        m[n - 1] = secant[n - 2]
+        if n > 2 {
+            for i in 1..<(n - 1) {
+                if secant[i - 1] * secant[i] <= 0 {
+                    m[i] = 0
+                } else {
+                    m[i] = (secant[i - 1] + secant[i]) * 0.5
+                }
+            }
+        }
+        for i in 0..<(n - 1) {
+            let d = secant[i]
+            if abs(d) < 1e-9 {
+                m[i] = 0
+                m[i + 1] = 0
+            } else {
+                let alpha = m[i] / d
+                let beta = m[i + 1] / d
+                let s = alpha * alpha + beta * beta
+                if s > 9.0 {
+                    let tau = 3.0 / sqrt(s)
+                    m[i] = tau * alpha * d
+                    m[i + 1] = tau * beta * d
+                }
+            }
+        }
+        return m
+    }
+
+    static func monotoneCubicPath(points: [CGPoint], minY: CGFloat, maxY: CGFloat) -> Path {
+        var path = Path()
+        guard let first = points.first else { return path }
+        let clampedFirst = CGPoint(x: first.x, y: min(max(first.y, minY), maxY))
+        path.move(to: clampedFirst)
+        guard points.count >= 2 else { return path }
+        if points.count == 2 {
+            let second = points[1]
+            path.addLine(to: CGPoint(x: second.x, y: min(max(second.y, minY), maxY)))
+            return path
+        }
+        let clampedPoints = points.map { CGPoint(x: $0.x, y: min(max($0.y, minY), maxY)) }
+        let slopes = monotoneCubicSlopes(for: clampedPoints)
+        for i in 0..<(clampedPoints.count - 1) {
+            let p0 = clampedPoints[i]
+            let p1 = clampedPoints[i + 1]
+            let dx = p1.x - p0.x
+            let c1y = min(max(p0.y + slopes[i] * dx / 3.0, minY), maxY)
+            let c2y = min(max(p1.y - slopes[i + 1] * dx / 3.0, minY), maxY)
+            path.addCurve(to: p1,
+                          control1: CGPoint(x: p0.x + dx / 3.0, y: c1y),
+                          control2: CGPoint(x: p1.x - dx / 3.0, y: c2y))
+        }
+        return path
+    }
+
+    static func rightEdgeY(points: [CGPoint], edgeX: CGFloat, minY: CGFloat, maxY: CGFloat) -> CGFloat? {
+        guard !points.isEmpty else { return nil }
+        if points.count == 1 {
+            return min(max(points[0].y, minY), maxY)
+        }
+        let clamped = points.map { CGPoint(x: $0.x, y: min(max($0.y, minY), maxY)) }
+        let n = clamped.count
+        let p0 = clamped[n - 2]
+        let p1 = clamped[n - 1]
+        let dx = p1.x - p0.x
+        guard dx > 1e-6 else { return p1.y }
+        let t = min(max((edgeX - p0.x) / dx, 0), 1)
+        if n == 2 {
+            return min(max(p0.y + (p1.y - p0.y) * t, minY), maxY)
+        }
+        let slopes = monotoneCubicSlopes(for: clamped)
+        let c1y = min(max(p0.y + slopes[n - 2] * dx / 3.0, minY), maxY)
+        let c2y = min(max(p1.y - slopes[n - 1] * dx / 3.0, minY), maxY)
+        let omt = 1.0 - t
+        let y = omt * omt * omt * p0.y
+            + 3.0 * omt * omt * t * c1y
+            + 3.0 * omt * t * t * c2y
+            + t * t * t * p1.y
+        return min(max(y, minY), maxY)
+    }
+}
+
 struct LiveChart: View {
     var points: [TrafficPoint]
+    var sampledAt: Date? = nil
     var language: AppLanguage = .system
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var lastArrival: Date?
+    @State private var displayTop: Double = 1024
+
+    private var targetTop: Double {
+        let rawMax = max(points.map(\.bytesIn).max() ?? 0, points.map(\.bytesOut).max() ?? 0)
+        return LiveWaveMath.niceCeiling(maxValue: rawMax)
+    }
 
     var body: some View {
         let _ = language
-        let indexed = Array(points.enumerated())
-        Chart {
-            ForEach(indexed, id: \.offset) { i, p in
-                AreaMark(x: .value("t", i), y: .value(L10n.text("traffic.download", defaultValue: "下载"), p.bytesIn), series: .value(L10n.text("方向"), L10n.text("traffic.download", defaultValue: "下载")))
-                    .foregroundStyle(LinearGradient(colors: [Palette.download.opacity(0.35), Palette.download.opacity(0.02)],
-                                                    startPoint: .top, endPoint: .bottom))
-                LineMark(x: .value("t", i), y: .value(L10n.text("traffic.download", defaultValue: "下载"), p.bytesIn), series: .value(L10n.text("方向"), L10n.text("traffic.download", defaultValue: "下载")))
-                    .foregroundStyle(Palette.download)
-                LineMark(x: .value("t", i), y: .value(L10n.text("traffic.upload", defaultValue: "上传"), p.bytesOut), series: .value(L10n.text("方向"), L10n.text("traffic.upload", defaultValue: "上传")))
-                    .foregroundStyle(Palette.upload)
-            }
-        }
-        .chartXAxis(.hidden)
-        .chartXScale(domain: 0...max(NetworkTracker.liveCapacity - 1, indexed.count))
-        .chartYAxis {
-            AxisMarks(position: .leading) { v in
-                AxisGridLine()
-                AxisValueLabel { if let d = v.as(Double.self) { Text(Fmt.compactRate(d)).font(.system(size: 9)) } }
-            }
-        }
+        LiveWaveCanvas(points: points,
+                       lastArrival: lastArrival,
+                       ceiling: displayTop,
+                       reduceMotion: reduceMotion,
+                       waitingText: L10n.text("live.waiting", defaultValue: "等待实时采样…"),
+                       nowLabel: L10n.text("现在"),
+                       minuteFormat: L10n.text("−%lld 分"))
         .overlay(alignment: .topTrailing) { ChartLegend(language: language) }
+        .onAppear {
+            displayTop = targetTop
+            lastArrival = sampledAt
+        }
+        .onChange(of: sampledAt) { _ in
+            lastArrival = Date()
+            updateDisplayTop()
+        }
+        .onChange(of: points.count) { _ in
+            if sampledAt != nil { lastArrival = Date() }
+            updateDisplayTop()
+        }
+    }
+
+    private func updateDisplayTop() {
+        let next = targetTop
+        if reduceMotion {
+            displayTop = next
+        } else {
+            withAnimation(.easeOut(duration: 0.45)) {
+                displayTop = next
+            }
+        }
+    }
+}
+
+private struct LiveWaveCanvas: View, Animatable {
+    var points: [TrafficPoint]
+    var lastArrival: Date?
+    var ceiling: Double
+    var reduceMotion: Bool
+    var waitingText: String
+    var nowLabel: String
+    var minuteFormat: String
+
+    var animatableData: Double {
+        get { ceiling }
+        set { ceiling = newValue }
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: reduceMotion || points.isEmpty)) { timeline in
+            Canvas { context, size in
+                let leftMargin: CGFloat = 52
+                let rightMargin: CGFloat = 8
+                let topMargin: CGFloat = 20
+                let bottomMargin: CGFloat = 18
+                let plotWidth = max(size.width - leftMargin - rightMargin, 1)
+                let plotHeight = max(size.height - topMargin - bottomMargin, 1)
+                let plotRect = CGRect(x: leftMargin, y: topMargin, width: plotWidth, height: plotHeight)
+                let safeTop = max(ceiling, 1024)
+
+                // Y 轴 4 档参考线与刻度
+                for step in 0...3 {
+                    let frac = CGFloat(step) / 3.0
+                    let y = plotRect.maxY - frac * plotRect.height
+                    var grid = Path()
+                    grid.move(to: CGPoint(x: plotRect.minX, y: y))
+                    grid.addLine(to: CGPoint(x: plotRect.maxX, y: y))
+                    context.stroke(grid, with: .color(.primary.opacity(step == 0 ? 0.14 : 0.07)), lineWidth: 0.5)
+
+                    let label = step == 0 ? Fmt.compactRate(0) : Fmt.compactRate(safeTop * Double(frac))
+                    let text = Text(label).font(.system(size: 9).monospacedDigit()).foregroundColor(.secondary)
+                    context.draw(text, at: CGPoint(x: plotRect.minX - 6, y: y), anchor: .trailing)
+                }
+
+                // 底部时间轴：-5 分、-3 分、-1 分、现在
+                let xTicks: [(CGFloat, String, UnitPoint)] = [
+                    (0.0, String(format: minuteFormat, Int64(5)), .leading),
+                    (0.4, String(format: minuteFormat, Int64(3)), .center),
+                    (0.8, String(format: minuteFormat, Int64(1)), .center),
+                    (1.0, nowLabel, .trailing)
+                ]
+                let xLabelY = size.height - 3
+                for (frac, label, anchor) in xTicks {
+                    let x = plotRect.minX + frac * plotRect.width
+                    let text = Text(label).font(.system(size: 9)).foregroundColor(.secondary)
+                    context.draw(text, at: CGPoint(x: x, y: xLabelY), anchor: anchor)
+                }
+
+                guard !points.isEmpty else {
+                    let wait = Text(waitingText).font(.system(size: 11)).foregroundColor(.secondary)
+                    context.draw(wait, at: CGPoint(x: plotRect.midX, y: plotRect.midY), anchor: .center)
+                    return
+                }
+
+                let stepSeconds = Double(NetworkMonitor.foregroundInterval)
+                let subStep = reduceMotion ? 0 : LiveWaveMath.scrollSubStep(
+                    since: lastArrival, now: timeline.date, stepSeconds: stepSeconds, pointCount: points.count
+                )
+                let count = points.count
+                var downPts: [CGPoint] = []
+                var upPts: [CGPoint] = []
+                downPts.reserveCapacity(count)
+                upPts.reserveCapacity(count)
+
+                for i in 0..<count {
+                    let x = plotRect.minX + LiveWaveMath.xCoordinate(
+                        index: i, count: count, capacity: NetworkTracker.liveCapacity,
+                        width: plotRect.width, subStep: subStep
+                    )
+                    let inFrac = CGFloat(min(max(points[i].bytesIn / safeTop, 0), 1))
+                    let outFrac = CGFloat(min(max(points[i].bytesOut / safeTop, 0), 1))
+                    downPts.append(CGPoint(x: x, y: plotRect.maxY - inFrac * plotRect.height))
+                    upPts.append(CGPoint(x: x, y: plotRect.maxY - outFrac * plotRect.height))
+                }
+
+                context.drawLayer { layer in
+                    layer.clip(to: Path(plotRect))
+                    drawSeries(in: &layer, pts: upPts, plotRect: plotRect, color: Palette.upload,
+                               topAlpha: 0.16, bottomAlpha: 0.01, lineWidth: 1.55)
+                    drawSeries(in: &layer, pts: downPts, plotRect: plotRect, color: Palette.download,
+                               topAlpha: 0.30, bottomAlpha: 0.02, lineWidth: 1.75)
+                }
+
+                // 右边缘实时脉冲点
+                let pulsePhase = reduceMotion
+                    ? 0.0
+                    : timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.6) / 1.6
+                if let upY = LiveWaveMath.rightEdgeY(points: upPts, edgeX: plotRect.maxX,
+                                                     minY: plotRect.minY, maxY: plotRect.maxY) {
+                    drawLiveIndicator(in: &context, at: CGPoint(x: plotRect.maxX, y: upY),
+                                      color: Palette.upload, phase: pulsePhase, reduceMotion: reduceMotion)
+                }
+                if let downY = LiveWaveMath.rightEdgeY(points: downPts, edgeX: plotRect.maxX,
+                                                       minY: plotRect.minY, maxY: plotRect.maxY) {
+                    drawLiveIndicator(in: &context, at: CGPoint(x: plotRect.maxX, y: downY),
+                                      color: Palette.download, phase: pulsePhase, reduceMotion: reduceMotion)
+                }
+            }
+        }
+    }
+
+    private func drawSeries(in context: inout GraphicsContext, pts: [CGPoint], plotRect: CGRect,
+                            color: Color, topAlpha: Double, bottomAlpha: Double, lineWidth: CGFloat) {
+        guard pts.count >= 2 else { return }
+        let linePath = LiveWaveMath.monotoneCubicPath(points: pts, minY: plotRect.minY, maxY: plotRect.maxY)
+        var areaPath = linePath
+        areaPath.addLine(to: CGPoint(x: pts.last!.x, y: plotRect.maxY))
+        areaPath.addLine(to: CGPoint(x: pts.first!.x, y: plotRect.maxY))
+        areaPath.closeSubpath()
+
+        context.fill(
+            areaPath,
+            with: .linearGradient(
+                Gradient(colors: [color.opacity(topAlpha), color.opacity(bottomAlpha)]),
+                startPoint: CGPoint(x: plotRect.midX, y: plotRect.minY),
+                endPoint: CGPoint(x: plotRect.midX, y: plotRect.maxY)
+            )
+        )
+        context.stroke(linePath, with: .color(color),
+                       style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+    }
+
+    private func drawLiveIndicator(in context: inout GraphicsContext, at point: CGPoint,
+                                   color: Color, phase: Double, reduceMotion: Bool) {
+        if !reduceMotion {
+            let haloRadius = CGFloat(3.4 + phase * 5.2)
+            let haloAlpha = (1.0 - phase) * 0.45
+            let haloRect = CGRect(x: point.x - haloRadius, y: point.y - haloRadius,
+                                  width: haloRadius * 2, height: haloRadius * 2)
+            context.fill(Path(ellipseIn: haloRect), with: .color(color.opacity(haloAlpha)))
+        }
+        let dotRadius: CGFloat = 2.8
+        let dotRect = CGRect(x: point.x - dotRadius, y: point.y - dotRadius,
+                             width: dotRadius * 2, height: dotRadius * 2)
+        context.fill(Path(ellipseIn: dotRect), with: .color(color))
+        context.stroke(Path(ellipseIn: dotRect), with: .color(.white.opacity(0.85)), lineWidth: 1.0)
     }
 }
 
@@ -336,7 +612,13 @@ private struct TopTrafficList: View {
             Button { showApp(app.key) } label: {
                 HStack(spacing: 8) {
                     AppIcon(bundlePath: app.bundlePath, size: 18)
-                    Text(app.name).font(.system(size: 12)).lineLimit(1).frame(width: 150, alignment: .leading)
+                    HStack(spacing: 4) {
+                        Text(app.name).font(.system(size: 12)).lineLimit(1)
+                        if let role = NetworkRelayClassifier.role(appKey: app.key, appName: app.name, bundlePath: app.bundlePath) {
+                            RelayRoleTag(role: role)
+                        }
+                    }
+                    .frame(width: 150, alignment: .leading)
                     GeometryReader { g in
                         HStack(spacing: 0) {
                             Rectangle().fill(Palette.download)
